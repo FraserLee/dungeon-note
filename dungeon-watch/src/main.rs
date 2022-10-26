@@ -1,19 +1,23 @@
 use std::{
     io::{prelude::*, BufReader},
     net::{TcpListener, TcpStream},
+    path::Path,
     sync::{Arc, Mutex},
 };
 
 use notify::{Watcher, RecursiveMode};
-use std::path::Path;
 
 use lazy_static::lazy_static;
+
+use dungeon_parse::*;
+
 
 
 lazy_static! {
     static ref FILE: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
     static ref FILENAME: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
 }
+
 
 fn load() {
     let file = std::fs::read_to_string(FILENAME.lock().unwrap().to_string());
@@ -89,15 +93,6 @@ const HTML404: &str = r#"
     </body>
 </html>"#;
 
-const HTML_START: &str = r#"
-<!DOCTYPE html>
-<html lang="en">
-    <head><title>Dungeon Note 3</title></head>
-    <body>"#;
-const HTML_END: &str = r#"
-    </body>
-</html>"#;
-
 
 
 fn handle_connection(mut stream: TcpStream) {
@@ -105,7 +100,7 @@ fn handle_connection(mut stream: TcpStream) {
     let request_line = buf_reader.lines().next().unwrap().unwrap();
 
     let (status_line, contents) = if request_line == "GET / HTTP/1.1" {
-        ("HTTP/1.1 200 OK", format!("{}<pre>{}</pre>{}", HTML_START, FILE.lock().unwrap(), HTML_END))
+        ("HTTP/1.1 200 OK", parse(FILE.lock().unwrap().to_string()))
     } else {
         ("HTTP/1.1 404 NOT FOUND", HTML404.to_string())
     };

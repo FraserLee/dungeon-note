@@ -34,9 +34,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "dungeon-parse"
+version = "0.1.0"
+
+[[package]]
 name = "dungeon-watch"
 version = "0.1.0"
 dependencies = [
+ "dungeon-parse",
  "lazy_static",
  "notify",
 ]

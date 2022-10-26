@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 notify = "5.0.0"
 lazy_static = "1.4.0"
+dungeon-parse = { path = "../dungeon-parse" }

@@ -2,4 +2,5 @@
 
 members = [
     "dungeon-watch",
+    "dungeon-parse",
 ]
