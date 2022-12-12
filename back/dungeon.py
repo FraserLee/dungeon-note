@@ -28,7 +28,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header('Content-type', 'text/html')
                 self.end_headers()
                 # file located at index.html
-                with open('index.html', 'rb') as f:
+                with open('build/index.html', 'rb') as f:
                     self.wfile.write(f.read())
 
 
