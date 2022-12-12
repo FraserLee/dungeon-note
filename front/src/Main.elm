@@ -1,27 +1,25 @@
 module Main exposing (..)
 
--- <!DOCTYPE html>
--- <html>
--- <head>
---     <title>Counter</title>
---     <script>
---         function increment() {
---             // Send a request to the server to increment the counter
---             fetch('/increment', {method: 'POST'})
---             .then(response => response.json())
---             .then(data => {
---                 // Update the counter on the webpage
---                 document.getElementById('counter').innerHTML = data.counter;
---             });
---         }
---     </script>
--- </head>
--- <body>
---     <h1>Counter</h1>
---     <p id="counter">0</p>
---     <button onclick="increment()">Increment</button>
--- </body>
--- </html>
+import Browser
+import Html exposing (..)
 
-import Html exposing (text)
-main = text "Hello"
+type alias Model = { textBoxes : List String }
+init = { textBoxes = ["foo", "bar"] }
+type Msg = None
+
+update : Msg -> Model -> Model
+update msg model = model
+
+view : Model -> Html Msg
+view model =
+    div []
+        [ h1 [] [ text "elm test." ],
+          div []
+            (List.map
+                (\t -> p [] [ text t ])
+                model.textBoxes
+            )
+        ]
+
+main = Browser.sandbox { init = init, update = update, view = view }
+
