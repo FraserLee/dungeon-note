@@ -4,7 +4,7 @@ more sustainable once the skeleton is in place.
 - [x] Python <-> Locally hosted webpage
 - [x] Send forwards json full of dummy textboxes
 - [x] Render that on the page
-- [ ] Move HTML into its own file
+- [x] Move HTML into its own file
 - [ ] Re-add styling from dungeon-note-2
 - [ ] Click textbox to entire bounding mode edit (corners, drag and drop, etc)
 - [ ] Have changes get pushed backwards to python
