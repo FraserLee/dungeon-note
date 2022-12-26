@@ -3,13 +3,29 @@ import json
 import sys
 import dataclasses
 
-@dataclasses.dataclass
+id_counter = 0
+
+@dataclasses.dataclass(init=False)
 class Text:
     text   : str
     x      : float
     y      : float
     width  : float
     height : float
+    id     : int
+
+    def __init__(self, text, x, y, width, height):
+        global id_counter
+        self.text = text
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.id = id_counter
+        id_counter += 1
+
+    
+
 
 print("serving at http://localhost:3000")
 
