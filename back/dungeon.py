@@ -16,7 +16,7 @@ print("serving at http://localhost:3000")
 # The counter that will be incremented by the webpage
 counter = 0
 # The text boxes that will be displayed on the webpage
-textBlocks = [Text('Hello', 0, 0, 100, 100), Text('World', 100, 100, 100, 100)]
+textBlocks = [Text('Hello ' * 50, 0, 0, 100, 100), Text('World ' * 30, 100, 100, 100, 100)]
 
 # The handler for the webpage
 class MyHandler(http.server.SimpleHTTPRequestHandler):

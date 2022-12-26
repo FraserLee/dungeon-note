@@ -8,7 +8,7 @@ more sustainable once the skeleton is in place.
 - [ ] Re-add styling from dungeon-note-2
 - [ ] Click textbox to entire bounding mode edit (corners, drag and drop, etc)
 - [ ] Have changes get pushed backwards to python
-- [ ] Swap to elm for frontend
+- [x] Swap to elm for frontend
 
 - [ ] Watch file in python, grab list of textboxes from there
 - [ ] Save Changes when made
