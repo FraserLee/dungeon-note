@@ -6,17 +6,17 @@ import dataclasses
 @dataclasses.dataclass
 class Text:
     text   : str
-    x      : int
-    y      : int
-    width  : int
-    height : int
+    x      : float
+    y      : float
+    width  : float
+    height : float
 
 print("serving at http://localhost:3000")
 
 # The counter that will be incremented by the webpage
 counter = 0
 # The text boxes that will be displayed on the webpage
-textBlocks = [Text('Hello ' * 50, 0, 0, 100, 100), Text('World ' * 30, 100, 100, 100, 100)]
+textBlocks = [Text('Hello ' * 50, -300, 0, 600, 100), Text('World ' * 30, 100, 300, 100, 100)]
 
 # The handler for the webpage
 class MyHandler(http.server.SimpleHTTPRequestHandler):
@@ -37,7 +37,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                self.wfile.write(json.dumps({'text': [t.text for t in textBlocks]}).encode())
+                self.wfile.write(json.dumps({'paragraphs': [dataclasses.asdict(t) for t in textBlocks]}).encode())
 
     def do_POST(self):
         match self.path:
