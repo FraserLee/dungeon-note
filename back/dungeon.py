@@ -3,36 +3,30 @@ import json
 import sys
 import dataclasses
 
-id_counter = 0
+# https://stackoverflow.com/a/51286749/7602154
+class encoder(json.JSONEncoder):
+    def default(self, o):
+        if dataclasses.is_dataclass(o):
+            return dataclasses.asdict(o)
+        return super().default(o)
 
-@dataclasses.dataclass(init=False)
+@dataclasses.dataclass
 class Text:
     text   : str
     x      : float
     y      : float
     width  : float
     height : float
-    id     : int
-
-    def __init__(self, text, x, y, width, height):
-        global id_counter
-        self.text = text
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.id = id_counter
-        id_counter += 1
-
-    
-
 
 print("serving at http://localhost:3000")
 
 # The counter that will be incremented by the webpage
 counter = 0
 # The text boxes that will be displayed on the webpage
-textBlocks = [Text('Hello ' * 50, -300, 0, 600, 100), Text('World ' * 30, 100, 300, 100, 100)]
+textBlocks = {
+        0: Text('Hello ' * 50, -300, 0, 600, 100), 
+        1: Text('World ' * 30, 100, 300, 100, 100)
+    }
 
 # The handler for the webpage
 class MyHandler(http.server.SimpleHTTPRequestHandler):
@@ -53,7 +47,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                self.wfile.write(json.dumps({'paragraphs': [dataclasses.asdict(t) for t in textBlocks]}).encode())
+                self.wfile.write(json.dumps(textBlocks, cls=encoder).encode('utf-8'))
 
     def do_POST(self):
         match self.path:

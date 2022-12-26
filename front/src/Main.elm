@@ -5,27 +5,25 @@ module Main exposing (..)
 import Browser
 
 import Css exposing (..)
+import Tailwind.Breakpoints as Breakpoints
+import Tailwind.Utilities as Tw
 
 import Html
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
+import Html.Styled.Events exposing (onClick)
 
 import Http
 
 import Json.Decode exposing (Decoder, field, int, string)
 
+import Dict exposing (Dict)
 
-import Tailwind.Breakpoints as Breakpoints
-import Tailwind.Utilities as Tw
+---------------------------------- model types ---------------------------------
 
-------------------------------------- types ------------------------------------
-
-type alias TextBoxId = Int
+type alias TextBoxId = String
 
 type TextBoxState = ViewState | EditState
-
-type TBMsg = UpdateWidth Float | UpdateHeight Float | UpdateX Float | UpdateY Float
-type alias TextBoxMsg = (TextBoxId, TBMsg)
 
 type alias TextBoxData = { text : String
                          , width : Float
@@ -33,33 +31,41 @@ type alias TextBoxData = { text : String
                          , x : Float
                          , y : Float }
 
-type alias TextBox = { data : TextBoxData
-                     , state : TextBoxState
-                     , id : TextBoxId }
+type alias TextBox = (TextBoxState, TextBoxData)
 
-type alias Document = { paragraphs : List TextBox }
+
+
+type alias Document = Dict String TextBox
 
 type Model = Loading | Loaded Document | Failed Http.Error
 
+--------------------------------- message types --------------------------------
+
+type TBMsg = UpdateWidth Float | UpdateHeight Float | UpdateX Float | UpdateY Float
+type alias TextBoxMsg = (TextBoxId, TBMsg)
+
 type Msg = LoadDocument (Result Http.Error Document) | Changes (List TextBoxMsg)
+
+init : () -> (Model, Cmd Msg)
+init _ = (Loading, fetchData)
 
 ------------------------------------- load -------------------------------------
 
 fetchData : Cmd Msg
 fetchData = Http.get { url = "/fetch", expect = Http.expectJson LoadDocument decodeDocument }
 
+-- { "0" : { ... first paragraph data ... }, "1" : { ... second paragraph data ... } }
+-- not completely sure how to parse the keys back into ints, so I'll leave it for now
+
 decodeDocument : Decoder Document
-decodeDocument = field "paragraphs" (Json.Decode.list decodeTextBox) |> Json.Decode.map Document
+decodeDocument = Json.Decode.dict decodeTextBox
 
 decodeTextBox : Decoder TextBox
--- each textbox has fields for text, width, height, x, y, and id. State should
--- default to ViewState, and the first 4 fields should be inside the inner "data"
--- field.
-decodeTextBox = Json.Decode.map4 TextBox (field "data" decodeTextBoxData) ViewState (field "id" Json.Decode.int)
+decodeTextBox = Json.Decode.map2 Tuple.pair (Json.Decode.succeed ViewState) decodeTextBoxData
 
 decodeTextBoxData : Decoder TextBoxData
-decodeTextBoxData = Json.Decode.map5 TextBoxData 
-    Json.Decode.map5 TextBox
+decodeTextBoxData =
+    Json.Decode.map5 TextBoxData
         (field "text" string)
         (field "width" Json.Decode.float)
         (field "height" Json.Decode.float)
@@ -67,9 +73,6 @@ decodeTextBoxData = Json.Decode.map5 TextBoxData
         (field "y" Json.Decode.float)
 
 
-
-init : () -> (Model, Cmd Msg)
-init _ = (Loading, fetchData)
 
 ------------------------------------- logic ------------------------------------
 
@@ -79,25 +82,30 @@ update msg model =
         LoadDocument (Ok data) -> (Loaded data, Cmd.none)
         LoadDocument (Err err) -> (Failed err, Cmd.none)
         Changes msgs -> case model of
-            Loaded doc -> (Loaded { doc | paragraphs = updateTextBoxes doc.paragraphs msgs }, Cmd.none)
+            Loaded doc -> (Loaded (applyChanges doc msgs), Cmd.none)
             _ -> (model, Cmd.none)
 
---
--- updateTextBox : TextBox -> TextBoxMsg -> TextBox
--- updateTextBox { data, state, id } (msgId, msg) =
---     if id /= msgId then
---         { data = data, state = state, id = id }
---     else case msg of UpdateWidth w -> { data = { data | width = w }, state = state, id = id }
---                      UpdateHeight h -> { data = { data | height = h }, state = state, id = id }
---                      UpdateX x -> { data = { data | x = x }, state = state, id = id }
---                      UpdateY y -> { data = { data | y = y }, state = state, id = id }
 
-updateTextBoxes : List TextBox -> List TextBoxMsg -> List TextBox
--- updateTextBoxes textBoxes msgs = List.map (updateTextBoxes2 msgs) textBoxes
-updateTextBoxes textBoxes msgs = textBoxes
+updateTextBox : TextBoxData -> TBMsg -> TextBoxData
+updateTextBox data msg =
+    case msg of
+        UpdateWidth w -> { data | width = w }
+        UpdateHeight h -> { data | height = h }
+        UpdateX x -> { data | x = x }
+        UpdateY y -> { data | y = y }
 
--- updateTextBoxes2 : List TextBoxMsg -> TextBox -> TextBox
--- updateTextBoxes2 msgs textBox = List.foldl updateTextBox textBox msgs
+applyChanges : Document -> List TextBoxMsg -> Document
+applyChanges doc msgs =
+    List.foldl
+        (\(id, msg) doc1 -> Dict.update id (\k -> case k of
+            Just (state, data) -> Just (state, updateTextBox data msg)
+            Nothing -> Nothing) doc1)
+        doc
+        msgs
+
+
+
+
 
 ------------------------------------- view -------------------------------------
 
@@ -107,16 +115,21 @@ view model =
         Failed err -> text "Failed to load data." -- todo: show error
         Loading -> text "Loading..."
         Loaded d ->
-              let textBoxesHtml = List.map (\t -> viewTextBox t) d.paragraphs
+              let textBoxesHtml = List.map (\(k, t) -> viewTextBox t) (Dict.toList d)
               in div [ css [ Tw.top_0, Tw.w_full, Tw.h_screen ] ]
                      [ div [ css [ Tw.top_0, Tw.absolute, left (vw 50) ] ]
                          textBoxesHtml
                      ]
 
 viewTextBox : TextBox -> Html Msg
-viewTextBox t =
-    div [ css [ Tw.absolute, Css.width (px t.width), Css.height (px t.height), left (px t.x), top (px t.y) ] ]
-        [ text t.text ]
+viewTextBox (state, data) =
+    case state of 
+        EditState -> text "Edit"
+        ViewState -> div 
+          [ css [ Tw.absolute, Css.width (px data.width), Css.height (px data.height), left (px data.x), top (px data.y) ]
+          , onClick (Changes [ ( "0", UpdateWidth 100 ) ]) -- todo: proper edit mode, get own id.
+          ]
+          [ text data.text ]
 
 
 
