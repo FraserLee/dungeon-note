@@ -72,55 +72,55 @@ decodeTextBoxData =
         (field "x" Json.Decode.float)
         (field "y" Json.Decode.float)
 
-
-
 ------------------------------------- logic ------------------------------------
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case (model, msg) of
+
+        ----------------------------- load document ----------------------------
         (_, LoadDocument (Ok data)) -> (Loaded data, Cmd.none)
         (_, LoadDocument (Err err)) -> (Failed err, Cmd.none)
 
-        (Loaded doc, Changes msgs) -> (Loaded (applyChanges doc msgs), Cmd.none)
 
+        ------------------------------- selection ------------------------------
         (Loaded doc, SelectBox Deselect) -> 
             (Loaded (Dict.map (\_ (_, data) -> (ViewState, data)) doc), Cmd.none)
 
         (Loaded doc, SelectBox (Select id)) ->
-            let updateBox key (_, data) = 
+            let updateBox key (_, data) =  -- turn box to either selected or deselected
                     if key == id then (EditState, data)
                     else (ViewState, data)
             in (Loaded (Dict.map updateBox doc), Cmd.none)
 
 
-        (_, _) -> (model, Cmd.none)
+        ------------------------------ modify data -----------------------------
+        (Loaded doc, Changes msgs) -> 
 
+            let updateBox data m = -- update one textbox data
+                    case m of
+                        UpdateWidth w -> { data | width = w }
+                        UpdateHeight h -> { data | height = h }
+                        UpdateX x -> { data | x = x }
+                        UpdateY y -> { data | y = y }
 
-updateTextBox : TextBoxData -> TBMsg -> TextBoxData
-updateTextBox data msg =
-    case msg of
-        UpdateWidth w -> { data | width = w }
-        UpdateHeight h -> { data | height = h }
-        UpdateX x -> { data | x = x }
-        UpdateY y -> { data | y = y }
+                -- apply one message to the document
+                apply (id, m) doc1 = Dict.update id (Maybe.map (\(state, data) -> (state, updateBox data m))) doc1
 
-applyChanges : Document -> List TextBoxMsg -> Document
-applyChanges doc msgs =
-    List.foldl
-        (\(id, msg) doc1 -> Dict.update id (Maybe.map (\(state, data) -> (state, updateTextBox data msg))) doc1)
-        doc
-        msgs
+            -- apply all messages one by one
+            in (Loaded (List.foldr apply doc msgs), Cmd.none)
 
-
+        -- fall-through (just do nothing, probably tried to act while document loading) 
+        _ -> (model, Cmd.none)
 
 
 ------------------------------------- view -------------------------------------
 
+
 view : Model -> Html Msg
 view model =
     case model of
-        Failed err -> text "Failed to load data." -- todo: show error
+        Failed err -> text ("Failed to load data: " ++ (Debug.toString err))
         Loading -> text "Loading..."
         Loaded d ->
               let textBoxesHtml = List.map viewTextBox (Dict.toList d)
