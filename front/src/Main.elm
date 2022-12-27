@@ -19,18 +19,14 @@ import Dict exposing (Dict)
 
 ---------------------------------- model types ---------------------------------
 
-type alias TextBoxId = String
-
+type alias TextBox = (TextBoxState, TextBoxData)
 type TextBoxState = ViewState | EditState
-
+type alias TextBoxId = String
 type alias TextBoxData = { text : String
                          , width : Float
                          , height : Float
                          , x : Float
                          , y : Float }
-
-type alias TextBox = (TextBoxState, TextBoxData)
-
 
 
 type alias Document = Dict String TextBox
@@ -95,9 +91,11 @@ update msg model =
 
 
         ------------------------------ modify data -----------------------------
-        (Loaded doc, Changes msgs) -> 
+        (Loaded doc, Changes msgs) ->
 
-            let updateBox data m = -- update one textbox data
+            let _ = Debug.log "Changes:" msgs
+
+                updateBox data m = -- update one textbox data
                     case m of
                         UpdateWidth w -> { data | width = w }
                         UpdateHeight h -> { data | height = h }
@@ -106,6 +104,7 @@ update msg model =
 
                 -- apply one message to the document
                 apply (id, m) doc1 = Dict.update id (Maybe.map (\(state, data) -> (state, updateBox data m))) doc1
+
 
             -- apply all messages one by one
             in (Loaded (List.foldr apply doc msgs), Cmd.none)
@@ -145,3 +144,22 @@ viewTextBox (k, (state, data)) =
 
 main : Program () Model Msg
 main = Browser.element { init = init, update = update, view = view >> toUnstyled, subscriptions = \_ -> Sub.none }
+
+
+
+
+
+
+
+
+------------------------------ drag-able move icon -----------------------------
+
+type alias MoveIcon = (MoveIconState, Float, Float)
+type MoveIconState = Hidden | Visible
+
+
+
+
+
+
+
