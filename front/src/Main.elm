@@ -5,17 +5,15 @@ module Main exposing (..)
 import Browser
 
 import Css exposing (..)
-import Tailwind.Breakpoints as Breakpoints
 import Tailwind.Utilities as Tw
 
-import Html
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (onClick)
 
 import Http
 
-import Json.Decode exposing (Decoder, field, int, string)
+import Json.Decode exposing (Decoder, field, string)
 
 import Dict exposing (Dict)
 
@@ -44,7 +42,9 @@ type Model = Loading | Loaded Document | Failed Http.Error
 type TBMsg = UpdateWidth Float | UpdateHeight Float | UpdateX Float | UpdateY Float
 type alias TextBoxMsg = (TextBoxId, TBMsg)
 
-type Msg = LoadDocument (Result Http.Error Document) | Changes (List TextBoxMsg)
+type SelectMsg = Select TextBoxId | Deselect
+
+type Msg = LoadDocument (Result Http.Error Document) | Changes (List TextBoxMsg) | SelectBox SelectMsg
 
 init : () -> (Model, Cmd Msg)
 init _ = (Loading, fetchData)
@@ -78,12 +78,23 @@ decodeTextBoxData =
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
-    case msg of
-        LoadDocument (Ok data) -> (Loaded data, Cmd.none)
-        LoadDocument (Err err) -> (Failed err, Cmd.none)
-        Changes msgs -> case model of
-            Loaded doc -> (Loaded (applyChanges doc msgs), Cmd.none)
-            _ -> (model, Cmd.none)
+    case (model, msg) of
+        (_, LoadDocument (Ok data)) -> (Loaded data, Cmd.none)
+        (_, LoadDocument (Err err)) -> (Failed err, Cmd.none)
+
+        (Loaded doc, Changes msgs) -> (Loaded (applyChanges doc msgs), Cmd.none)
+
+        (Loaded doc, SelectBox Deselect) -> 
+            (Loaded (Dict.map (\_ (_, data) -> (ViewState, data)) doc), Cmd.none)
+
+        (Loaded doc, SelectBox (Select id)) ->
+            let updateBox key (_, data) = 
+                    if key == id then (EditState, data)
+                    else (ViewState, data)
+            in (Loaded (Dict.map updateBox doc), Cmd.none)
+
+
+        (_, _) -> (model, Cmd.none)
 
 
 updateTextBox : TextBoxData -> TBMsg -> TextBoxData
@@ -97,12 +108,9 @@ updateTextBox data msg =
 applyChanges : Document -> List TextBoxMsg -> Document
 applyChanges doc msgs =
     List.foldl
-        (\(id, msg) doc1 -> Dict.update id (\k -> case k of
-            Just (state, data) -> Just (state, updateTextBox data msg)
-            Nothing -> Nothing) doc1)
+        (\(id, msg) doc1 -> Dict.update id (Maybe.map (\(state, data) -> (state, updateTextBox data msg))) doc1)
         doc
         msgs
-
 
 
 
@@ -115,22 +123,25 @@ view model =
         Failed err -> text "Failed to load data." -- todo: show error
         Loading -> text "Loading..."
         Loaded d ->
-              let textBoxesHtml = List.map (\(k, t) -> viewTextBox t) (Dict.toList d)
+              let textBoxesHtml = List.map viewTextBox (Dict.toList d)
               in div [ css [ Tw.top_0, Tw.w_full, Tw.h_screen ] ]
                      [ div [ css [ Tw.top_0, Tw.absolute, left (vw 50) ] ]
                          textBoxesHtml
                      ]
 
-viewTextBox : TextBox -> Html Msg
-viewTextBox (state, data) =
-    case state of 
-        EditState -> text "Edit"
-        ViewState -> div 
-          [ css [ Tw.absolute, Css.width (px data.width), Css.height (px data.height), left (px data.x), top (px data.y) ]
-          , onClick (Changes [ ( "0", UpdateWidth 100 ) ]) -- todo: proper edit mode, get own id.
-          ]
-          [ text data.text ]
+viewTextBox : (TextBoxId, TextBox) -> Html Msg
+viewTextBox (k, (state, data)) =
+    let colour = case state of
+            ViewState -> Tw.bg_gray_200
+            EditState -> Tw.bg_gray_300
+        width = Css.width (px data.width)
+        height = Css.height (px data.height)
+        x = Css.left (px data.x)
+        y = Css.top (px data.y)
+        style = css [ Tw.absolute, width, height, x, y, colour ]
+    -- in div [ style, onClick (Changes [ ( k, UpdateWidth (data.width + 10)) ]) ] [ text data.text ]
+    in div [ style, onClick (SelectBox (Select k)) ] [ text data.text ]
 
 
-
+main : Program () Model Msg
 main = Browser.element { init = init, update = update, view = view >> toUnstyled, subscriptions = \_ -> Sub.none }
