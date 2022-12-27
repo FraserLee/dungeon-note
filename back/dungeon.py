@@ -49,6 +49,8 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps(textBlocks, cls=encoder).encode('utf-8'))
 
+            case _: super().do_GET()
+
     def do_POST(self):
         match self.path:
             case '/increment':
@@ -61,13 +63,6 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps({'counter': counter}).encode())
-
-            case _:
-                # Send an error message back to the webpage
-                self.send_response(404)
-                self.send_header('Content-type', 'text/plain')
-                self.end_headers()
-                self.wfile.write('Not found'.encode())
 
 # Start the server, and quit when Ctrl+C is pressed
 try:

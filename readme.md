@@ -12,8 +12,8 @@ more sustainable once the skeleton is in place.
 - [ ] Click textbox to entire bounding mode edit (corners, drag and drop, etc)
     - [ ] Rotation
 
-- [ ] Add a global css file
-- [ ] Re-add styling from dungeon-note-2
+- [x] Add a global css file
+- [x] Re-add styling from dungeon-note-2
 
 - [ ] Watch file in python, grab list of textboxes from there
 - [ ] Save Changes when made
