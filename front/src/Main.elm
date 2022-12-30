@@ -115,34 +115,26 @@ update msg model =
 
 
         ------------------------------- selection ------------------------------
-        (Loaded (doc, volatile), SelectBox Deselect) ->
-            let _ = Debug.log "deselect" () in
-            let textBoxes = Dict.map (\_ (_, data) -> (ViewState, data)) doc.textBoxes
-            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
 
+        (Loaded (doc, volatile), SelectBox selectMode) ->
+            let _ = Debug.log "select:" selectMode in
+            let target = case selectMode of
+                    Select id -> id
+                    DragStart id -> id
+                    DragStop id -> id
+                    Deselect -> ""
 
-        (Loaded (doc, volatile), SelectBox (Select id)) ->
-            let _ = Debug.log "select" id in
-            let updateBox key (state, data) =  -- turn box to either selected or deselected
-                    if key == id then (EditState Base, data)
-                    else (ViewState, data)
+                updateBox key (state, data) = 
+                    if selectMode == Deselect then (ViewState, data)
+                    else if key /= target then (state, data)
+                    else case (selectMode, state) of
+                        (Select _, ViewState) -> (EditState Base, data)
+                        (DragStart _, EditState Base) -> (EditState Drag, data)
+                        (DragStop _, EditState Drag) -> (EditState Base, data)
+                        _ -> (state, data)
+
                 textBoxes = Dict.map updateBox doc.textBoxes
-            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
 
-        (Loaded (doc, volatile), SelectBox (DragStart id)) ->
-            let _ = Debug.log "drag start" id in
-            let updateBox key (state, data) =
-                    if key == id then (EditState Drag, data)
-                    else (state, data)
-                textBoxes = Dict.map updateBox doc.textBoxes
-            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
-
-        (Loaded (doc, volatile), SelectBox (DragStop id)) ->
-            let _ = Debug.log "drag stop" id in
-            let updateBox key (state, data) =
-                    if key == id then (EditState Base, data)
-                    else (state, data)
-                textBoxes = Dict.map updateBox doc.textBoxes
             in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
 
 
