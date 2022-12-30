@@ -8,7 +8,7 @@ import Browser.Dom exposing (..)
 
 import Css exposing (..)
 import Tailwind.Utilities as Tw
--- import FeatherIcons
+import FeatherIcons
 
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (css, id)
@@ -154,7 +154,6 @@ update msg model =
                     case state of
                         ViewState -> (state, data)
                         EditState -> 
-                            -- let (x1, y1) = pageToCoords (x, y) in
                             let (x1, y1) = (x - volatile.anchorPos.x, y - volatile.anchorPos.y) in
                             (state, { data | x = x1, y = y1 })
 
@@ -179,7 +178,6 @@ view model =
     case model of
         Failed err -> text ("Failed to load data: " ++ (Debug.toString err))
         Loading -> text "Loading..."
-        -- Loaded d -> FeatherIcons.chevronsLeft |> FeatherIcons.toHtml [] |> fromUnstyled
         Loaded (doc, _) ->
               let textBoxesHtml = List.map viewTextBox (Dict.toList doc.textBoxes)
               in div [ css [ Tw.top_0, Tw.w_full, Tw.h_screen ] ]
@@ -189,6 +187,22 @@ view model =
 
 viewTextBox : (TextBoxId, TextBox) -> Html Msg
 viewTextBox (k, (state, data)) =
+
+    let dragIcon = div [ css [ Tw.absolute, Tw.text_white
+                             , Css.top (pct 7), Css.left (pct 7)
+                             , Css.width (pct 86), Css.height (pct 86) ] ] 
+                       [ FeatherIcons.move 
+                       |> FeatherIcons.withSize 100
+                       |> FeatherIcons.withSizeUnit "%"
+                       |> FeatherIcons.toHtml [] |> fromUnstyled ]
+
+        dragWidget = div [ css [ Tw.absolute, Tw.bg_black
+                               , Css.top (px -10), Css.left (px -10)
+                               , Css.width (px 20), Css.height (px 20)
+                               , Css.zIndex (int 10) ] ] [ dragIcon ]
+
+    in
+
     let colour = case state of
             ViewState -> Tw.bg_opacity_0
             EditState -> Tw.bg_red_400
@@ -196,8 +210,7 @@ viewTextBox (k, (state, data)) =
         x = Css.left (px data.x)
         y = Css.top (px data.y)
         style = css [ Tw.absolute, width, x, y, colour ]
-    -- in div [ style, onClick (Changes [ ( k, UpdateWidth (data.width + 10)) ]) ] [ text data.text ]
-    in div [ style, onClick (SelectBox (Select k)) ] [ text data.text ]
+    in div [ style, onClick (SelectBox (Select k)) ] [ text data.text, dragWidget ]
 
 
 --------------------------------- subscriptions --------------------------------

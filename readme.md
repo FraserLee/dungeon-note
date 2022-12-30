@@ -8,9 +8,18 @@ more sustainable once the skeleton is in place.
 - [x] Swap to elm for frontend
 - [x] Transfer position of textboxes to frontend
 - [x] Ability to modify data within frontend
+- [ ] Click textbox to bounding mode edit
+    - [x] logical backing for drag and drop
+    - [x] correct positioning relative to page
+    - [ ] drag icon
+        - [x] position, looks
+        - [ ] mouse-over change both mouse and own colour
+        - [ ] change colour while being dragged
+    - [ ] drag and drop (mode, etc)
+    - [ ] horizontal resize
+    - [ ] rotation
+        - while single-pixel wheel around the point of the thing, mouseover
 - [ ] Have changes get pushed backwards to python
-- [ ] Click textbox to entire bounding mode edit (corners, drag and drop, etc)
-    - [ ] Rotation
 
 - [x] Add a global css file
 - [x] Re-add styling from dungeon-note-2
