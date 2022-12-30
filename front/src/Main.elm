@@ -124,10 +124,11 @@ update msg model =
                     DragStop id -> id
                     Deselect -> ""
 
-                updateBox key (state, data) = case (selectMode, state) of
-                        (Deselect, _) -> (ViewState, data)
-                        (Select _, ViewState) -> if key == target then (EditState Base, data) else (ViewState, data)
-                        (Select _, _) -> if key == target then (state, data) else (ViewState, data)
+                updateBox key (state, data) = 
+                    if selectMode == Deselect then (ViewState, data)
+                    else if key /= target then (state, data)
+                    else case (selectMode, state) of
+                        (Select _, ViewState) -> (EditState Base, data)
                         (DragStart _, EditState Base) -> (EditState Drag, data)
                         (DragStop _, EditState Drag) -> (EditState Base, data)
                         _ -> (state, data)
