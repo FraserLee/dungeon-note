@@ -119,7 +119,13 @@ update msg model =
 
         (Loaded doc, MouseMove { x, y }) ->
             let _ = Debug.log "MouseMove:" (x, y)
-            in (model, Cmd.none)
+
+                updateBox key (state, data) =  -- turn box to either selected or deselected
+                    case state of
+                        ViewState -> (state, data)
+                        EditState -> (state, { data | x = toFloat x, y = toFloat y })
+
+            in (Loaded (Dict.map updateBox doc), Cmd.none)
 
         -- fall-through (just do nothing, probably tried to act while document loading) 
         _ -> (model, Cmd.none)
