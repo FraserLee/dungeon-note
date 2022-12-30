@@ -16,7 +16,6 @@ class Text:
     x      : float
     y      : float
     width  : float
-    height : float
 
 print("serving at http://localhost:3000")
 
@@ -24,8 +23,8 @@ print("serving at http://localhost:3000")
 counter = 0
 # The text boxes that will be displayed on the webpage
 textBlocks = {
-        0: Text('Hello ' * 50, -300, 0, 600, 100), 
-        1: Text('World ' * 30, 100, 300, 100, 100)
+        0: Text('Hello ' * 50, -300, 0, 600), 
+        1: Text('World ' * 30, 100, 300, 100)
     }
 
 # The handler for the webpage
