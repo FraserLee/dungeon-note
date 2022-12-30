@@ -165,7 +165,10 @@ update msg model =
                     case state of
                         ViewState -> (state, data)
                         EditState Base -> (state, data)
-                        EditState Drag -> (state, { data | x = x - volatile.anchorPos.x, y = y - volatile.anchorPos.y })
+                        EditState Drag -> 
+                            let x1 = (x - volatile.anchorPos.x) - data.x
+                                y1 = (y - volatile.anchorPos.y) - data.y
+                            in (state, { data | x = data.x + x1 * 0.8, y = data.y + y1 * 0.8 })
 
                 textBoxes = Dict.map updateBox doc.textBoxes
 
@@ -198,22 +201,26 @@ view model =
 viewTextBox : (TextBoxId, TextBox) -> Html Msg
 viewTextBox (k, (state, data)) =
 
-    let dragIcon = div [ css [ Tw.absolute, Tw.text_white, Tw.cursor_move
-                             , Css.top (pct 7), Css.left (pct 7)
+    let dragIcon = div [ css [ Tw.text_white, Tw.cursor_move
                              , Css.width (pct 86), Css.height (pct 86) ] ] 
                        [ FeatherIcons.move 
                        |> FeatherIcons.withSize 100
                        |> FeatherIcons.withSizeUnit "%"
                        |> FeatherIcons.toHtml [] |> fromUnstyled ]
 
-        dragWidget = div [ css <| [ Tw.absolute
-                               , Css.top (px -10), Css.left (px -10)
-                               , Css.width (px 20), Css.height (px 20)
-                               , Css.zIndex (int 10) ] 
+        dragBox = div [ css <| [ Tw.flex, Tw.justify_center, Tw.items_center
+                               , Css.width (px 20), Css.height (px 20) ]
                                ++ ( if state == EditState Drag then [ Tw.bg_red_500 ] 
                                     else [ Tw.bg_black, hover [ Tw.bg_red_700 ] ] )
+                      ] [ dragIcon ]
+
+        dragWidget = div [ css [ Tw.absolute, Tw.flex, Tw.justify_center, Tw.items_center
+                               , Tw.bg_transparent, Tw.cursor_move
+                               , Css.top (px -15), Css.left (px -15)
+                               , Css.width (px 30), Css.height (px 30)
+                               , Css.zIndex (int 10) ] 
                          , onMouseDown (SelectBox (DragStart k))
-                         , onMouseUp (SelectBox (DragStop k))] [ dragIcon ]
+                         , onMouseUp (SelectBox (DragStop k))] [ dragBox ]
 
     in let style = css <| [ Tw.absolute, Css.width (px data.width), Css.left (px data.x), Css.top (px data.y)] 
                  ++ case state of
