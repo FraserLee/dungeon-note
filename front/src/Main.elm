@@ -68,7 +68,6 @@ fetchData = Http.get { url = "/fetch", expect = Http.expectJson LoadDocument dec
 -- { "0" : { ... first paragraph data ... }, "1" : { ... second paragraph data ... } }
 -- not completely sure how to parse the keys back into ints, so I'll leave it for now
 
--- TODO: Check that this works
 decodeDocument : Decoder PersistentState
 decodeDocument = Json.Decode.dict decodeTextBox |> Json.Decode.map PersistentState
 
@@ -88,8 +87,12 @@ loadAnchorPos : Cmd Msg
 loadAnchorPos = getElement "anchor-div" 
        -- map from a task returning an element to a task returning a SetAnchorPos message
        |> Task.map (\el -> SetAnchorPos { x = el.element.x, y = el.element.y })
-       -- add a failure continuation, converting the task to a command
-       |> Task.attempt (\_ -> SetAnchorPos { x = 0, y = 0 })
+       -- add a continuation to unpack the result into a value, converting the task to a command
+       |> Task.attempt (\res -> case res of
+            Ok ap -> ap
+            Err er ->
+                let _ = Debug.log "Failed to load anchor position" er in
+                SetAnchorPos { x = 0, y = 0 })
 
 ------------------------------------- logic ------------------------------------
 
@@ -103,9 +106,11 @@ update msg model =
         (_, LoadDocument (Ok data)) -> (Loaded (data, { anchorPos = { x = 0, y = 0 } }), Cmd.batch [loadAnchorPos])
         (_, LoadDocument (Err err)) -> (Failed err, Cmd.none)
 
-        (_, SetAnchorPos pos) -> let _ = Debug.log "anchor pos" pos in case model of
-            Loaded (data, _) -> (Loaded (data, { anchorPos = pos }), Cmd.none)
-            _ -> (model, Cmd.none)
+        (_, SetAnchorPos pos) -> 
+                -- let _ = Debug.log "anchor pos" pos in 
+                case model of
+                    Loaded (data, _) -> (Loaded (data, { anchorPos = pos }), Cmd.none)
+                    _ -> (model, Cmd.none)
 
 
         ------------------------------- selection ------------------------------
