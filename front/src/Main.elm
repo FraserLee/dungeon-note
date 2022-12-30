@@ -41,7 +41,7 @@ type alias TextBoxMsg = (TextBoxId, TBMsg)
 
 type SelectMsg = Select TextBoxId | Deselect
 
-type alias MouseMoveMsg = { x : Int, y : Int }
+type alias MouseMoveMsg = { x : Float, y : Float }
 
 type Msg = LoadDocument (Result Http.Error Document) 
          | Changes (List TextBoxMsg) 
@@ -123,7 +123,7 @@ update msg model =
                 updateBox key (state, data) =  -- turn box to either selected or deselected
                     case state of
                         ViewState -> (state, data)
-                        EditState -> (state, { data | x = toFloat x, y = toFloat y })
+                        EditState -> (state, { data | x = x, y = y })
 
             in (Loaded (Dict.map updateBox doc), Cmd.none)
 
@@ -165,15 +165,10 @@ viewTextBox (k, (state, data)) =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     onMouseMove ( Json.Decode.map2 MouseMoveMsg
-        (field "pageX" Json.Decode.int)
-        (field "pageY" Json.Decode.int)
+        (field "pageX" Json.Decode.float)
+        (field "pageY" Json.Decode.float)
     ) |> Sub.map MouseMove
 
-    -- case model of
-    --     Loaded _ -> onMouseMove (Json.Decode.map2 MouseMove
-    --                                 (Json.Decode.field "pageX" Json.Decode.int)
-    --                                 (Json.Decode.field "pageY" Json.Decode.int))
-    --     _ -> Sub.none
 
 
 
