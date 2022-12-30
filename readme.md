@@ -15,7 +15,7 @@ more sustainable once the skeleton is in place.
         - [x] position, looks
         - [ ] mouse-over change both mouse and own colour
         - [ ] change colour while being dragged
-    - [ ] drag and drop (mode, etc)
+    - [ ] drag and drop tristate mode system
     - [ ] horizontal resize
     - [ ] rotation
         - while single-pixel wheel around the point of the thing, mouseover

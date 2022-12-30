@@ -188,7 +188,7 @@ view model =
 viewTextBox : (TextBoxId, TextBox) -> Html Msg
 viewTextBox (k, (state, data)) =
 
-    let dragIcon = div [ css [ Tw.absolute, Tw.text_white
+    let dragIcon = div [ css [ Tw.absolute, Tw.text_white, Tw.cursor_move
                              , Css.top (pct 7), Css.left (pct 7)
                              , Css.width (pct 86), Css.height (pct 86) ] ] 
                        [ FeatherIcons.move 
@@ -201,16 +201,14 @@ viewTextBox (k, (state, data)) =
                                , Css.width (px 20), Css.height (px 20)
                                , Css.zIndex (int 10) ] ] [ dragIcon ]
 
-    in
+    in let style = css <| [ Tw.absolute, Css.width (px data.width), Css.left (px data.x), Css.top (px data.y)] 
+                 ++ case state of
+                      ViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (hex "00000000"), Tw.p_4 ]
+                      EditState -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.p_4 ]
 
-    let colour = case state of
-            ViewState -> Tw.bg_opacity_0
-            EditState -> Tw.bg_red_400
-        width = Css.width (px data.width)
-        x = Css.left (px data.x)
-        y = Css.top (px data.y)
-        style = css [ Tw.absolute, width, x, y, colour ]
-    in div [ style, onClick (SelectBox (Select k)) ] [ text data.text, dragWidget ]
+           contents = (text data.text) :: (if state == EditState then [dragWidget] else [])
+
+    in div [ style, onClick (SelectBox (Select k)) ] contents
 
 
 --------------------------------- subscriptions --------------------------------

@@ -24,7 +24,7 @@ counter = 0
 # The text boxes that will be displayed on the webpage
 textBlocks = {
         0: Text('Hello ' * 50, -300, 0, 600), 
-        1: Text('World ' * 30, 100, 300, 100)
+        1: Text('World ' * 30, 100, 300, 300)
     }
 
 # The handler for the webpage
