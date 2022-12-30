@@ -4,14 +4,17 @@ module Main exposing (..)
 
 import Browser
 import Browser.Events exposing (onMouseMove)
+import Browser.Dom exposing (..)
 
 import Css exposing (..)
 import Tailwind.Utilities as Tw
-import FeatherIcons
+-- import FeatherIcons
 
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (css)
+import Html.Styled.Attributes exposing (css, id)
 import Html.Styled.Events exposing (onClick)
+
+import Task
 
 import Http
 
@@ -29,10 +32,15 @@ type alias TextBoxData = { text : String
                          , x : Float
                          , y : Float }
 
+type alias AnchorPos = { x : Float, y : Float }
 
-type alias Document = Dict String TextBox
+type alias VolatileState = { anchorPos : AnchorPos }
 
-type Model = Loading | Loaded Document | Failed Http.Error
+type alias PersistentState = { textBoxes : Dict TextBoxId TextBox }
+
+type Model = Loading 
+           | Loaded (PersistentState, VolatileState)
+           | Failed Http.Error
 
 --------------------------------- message types --------------------------------
 
@@ -43,7 +51,8 @@ type SelectMsg = Select TextBoxId | Deselect
 
 type alias MouseMoveMsg = { x : Float, y : Float }
 
-type Msg = LoadDocument (Result Http.Error Document) 
+type Msg = LoadDocument (Result Http.Error PersistentState)
+         | SetAnchorPos AnchorPos
          | Changes (List TextBoxMsg) 
          | SelectBox SelectMsg
          | MouseMove MouseMoveMsg
@@ -59,8 +68,9 @@ fetchData = Http.get { url = "/fetch", expect = Http.expectJson LoadDocument dec
 -- { "0" : { ... first paragraph data ... }, "1" : { ... second paragraph data ... } }
 -- not completely sure how to parse the keys back into ints, so I'll leave it for now
 
-decodeDocument : Decoder Document
-decodeDocument = Json.Decode.dict decodeTextBox
+-- TODO: Check that this works
+decodeDocument : Decoder PersistentState
+decodeDocument = Json.Decode.dict decodeTextBox |> Json.Decode.map PersistentState
 
 decodeTextBox : Decoder TextBox
 decodeTextBox = Json.Decode.map2 Tuple.pair (Json.Decode.succeed ViewState) decodeTextBoxData
@@ -73,59 +83,84 @@ decodeTextBoxData =
         (field "x" Json.Decode.float)
         (field "y" Json.Decode.float)
 
+
+loadAnchorPos : Cmd Msg
+loadAnchorPos = getElement "anchor-div" 
+       -- map from a task returning an element to a task returning a SetAnchorPos message
+       |> Task.map (\el -> SetAnchorPos { x = el.element.x, y = el.element.y })
+       -- add a failure continuation, converting the task to a command
+       |> Task.attempt (\_ -> SetAnchorPos { x = 0, y = 0 })
+
 ------------------------------------- logic ------------------------------------
+
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case (model, msg) of
 
-        ----------------------------- load document ----------------------------
-        (_, LoadDocument (Ok data)) -> (Loaded data, Cmd.none)
+        -------------------- load document, update volatiles -------------------
+
+        (_, LoadDocument (Ok data)) -> (Loaded (data, { anchorPos = { x = 0, y = 0 } }), Cmd.batch [loadAnchorPos])
         (_, LoadDocument (Err err)) -> (Failed err, Cmd.none)
+
+        (_, SetAnchorPos pos) -> let _ = Debug.log "anchor pos" pos in case model of
+            Loaded (data, _) -> (Loaded (data, { anchorPos = pos }), Cmd.none)
+            _ -> (model, Cmd.none)
 
 
         ------------------------------- selection ------------------------------
-        (Loaded doc, SelectBox Deselect) -> 
+        (Loaded (doc, volatile), SelectBox Deselect) ->
             let _ = Debug.log "deselect" () in
-            (Loaded (Dict.map (\_ (_, data) -> (ViewState, data)) doc), Cmd.none)
+            let textBoxes = Dict.map (\_ (_, data) -> (ViewState, data)) doc.textBoxes
+            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
 
-        (Loaded doc, SelectBox (Select id)) ->
-            let _ = Debug.log "select" id
-                updateBox key (_, data) =  -- turn box to either selected or deselected
+
+        (Loaded (doc, volatile), SelectBox (Select id)) ->
+            let _ = Debug.log "select" id in
+            let updateBox key (_, data) =  -- turn box to either selected or deselected
                     if key == id then (EditState, data)
                     else (ViewState, data)
-            in (Loaded (Dict.map updateBox doc), Cmd.none)
+                textBoxes = Dict.map updateBox doc.textBoxes
+            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
 
 
         ------------------------------ modify data -----------------------------
-        (Loaded doc, Changes msgs) ->
-
-            let _ = Debug.log "Changes:" msgs
-
-                updateBox data m = -- update one textbox data
+        (Loaded (doc, volatile), Changes cs) ->
+            let _ = Debug.log "Changes:" cs in
+            let updateBox data m = -- update one textbox data
                     case m of
                         UpdateWidth w -> { data | width = w }
                         UpdateX x -> { data | x = x }
                         UpdateY y -> { data | y = y }
 
                 -- apply one message to the document
-                apply (id, m) doc1 = Dict.update id (Maybe.map (\(state, data) -> (state, updateBox data m))) doc1
+                apply (id, m) tb = Dict.update id (Maybe.map (\(state, data) -> (state, updateBox data m))) tb
 
+                -- apply all messages one by one
+                textBoxes = List.foldl apply doc.textBoxes cs
 
-            -- apply all messages one by one
-            in (Loaded (List.foldr apply doc msgs), Cmd.none)
+            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
 
         ------------------------------ mouse move ------------------------------
 
-        (Loaded doc, MouseMove { x, y }) ->
-            let _ = Debug.log "MouseMove:" (x, y)
-
-                updateBox key (state, data) =  -- turn box to either selected or deselected
+        (Loaded (doc, volatile), MouseMove { x, y }) ->
+            -- let _ = Debug.log "MouseMove:" (x, y) in
+            let updateBox _ (state, data) =  -- turn box to either selected or deselected
                     case state of
                         ViewState -> (state, data)
-                        EditState -> (state, { data | x = x, y = y })
+                        EditState -> 
+                            -- let (x1, y1) = pageToCoords (x, y) in
+                            let (x1, y1) = (x - volatile.anchorPos.x, y - volatile.anchorPos.y) in
+                            (state, { data | x = x1, y = y1 })
 
-            in (Loaded (Dict.map updateBox doc), Cmd.none)
+                textBoxes = Dict.map updateBox doc.textBoxes
+
+            -- I'm not entirely sure what could invalidate the anchor position
+            -- (definitely window resize, but possibly some other things) so
+            -- I'll just reload it with each mouse move till performance
+            -- becomes an issue
+
+            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), loadAnchorPos)
 
         -- fall-through (just do nothing, probably tried to act while document loading) 
         _ -> (model, Cmd.none)
@@ -140,10 +175,10 @@ view model =
         Failed err -> text ("Failed to load data: " ++ (Debug.toString err))
         Loading -> text "Loading..."
         -- Loaded d -> FeatherIcons.chevronsLeft |> FeatherIcons.toHtml [] |> fromUnstyled
-        Loaded d ->
-              let textBoxesHtml = List.map viewTextBox (Dict.toList d)
+        Loaded (doc, _) ->
+              let textBoxesHtml = List.map viewTextBox (Dict.toList doc.textBoxes)
               in div [ css [ Tw.top_0, Tw.w_full, Tw.h_screen ] ]
-                     [ div [ css [ Tw.top_0, Tw.absolute, left (vw 50) ] ]
+                     [ div [ id "anchor-div", css [ Tw.top_0, Tw.absolute, left (vw 50) ] ]
                          textBoxesHtml
                      ]
 
@@ -163,7 +198,7 @@ viewTextBox (k, (state, data)) =
 --------------------------------- subscriptions --------------------------------
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     onMouseMove ( Json.Decode.map2 MouseMoveMsg
         (field "pageX" Json.Decode.float)
         (field "pageY" Json.Decode.float)
@@ -178,13 +213,6 @@ subscriptions model =
 
 main : Program () Model Msg
 main = Browser.element { init = init, update = update, view = view >> toUnstyled, subscriptions = subscriptions }
-
-
-
-
-
-
-
 
 
 
