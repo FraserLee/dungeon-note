@@ -15,10 +15,11 @@ more sustainable once the skeleton is in place.
         - [x] position, looks
         - [ ] mouse-over change both mouse and own colour
         - [ ] change colour while being dragged
-    - [ ] drag and drop tristate mode system
+    - [x] drag and drop tristate mode system
     - [ ] horizontal resize
     - [ ] rotation
         - while single-pixel wheel around the point of the thing, mouseover
+    - [ ] deselect when clicking background
 - [ ] Have changes get pushed backwards to python
 
 - [x] Add a global css file
@@ -29,8 +30,11 @@ more sustainable once the skeleton is in place.
 
 - [ ] Proper Markdown parsing
 
+
 - [ ] Re-add menu bar
 - [ ] Lines
 - [ ] Math
 - [ ] Write tests
+- [ ] don't select text when dragging
+- [ ] dynamically adjust pivot so stuff is never offscreen to the left
 - [ ] find out other things that should be on this list.

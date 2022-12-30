@@ -12,7 +12,7 @@ import FeatherIcons
 
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (css, id)
-import Html.Styled.Events exposing (onClick)
+import Html.Styled.Events exposing (onClick, onMouseDown, onMouseUp)
 
 import Task
 
@@ -25,7 +25,8 @@ import Dict exposing (Dict)
 ---------------------------------- model types ---------------------------------
 
 type alias TextBox = (TextBoxState, TextBoxData)
-type TextBoxState = ViewState | EditState
+type TextBoxEditState = Base | Drag
+type TextBoxState = ViewState | EditState TextBoxEditState
 type alias TextBoxId = String
 type alias TextBoxData = { text : String
                          , width : Float
@@ -47,7 +48,7 @@ type Model = Loading
 type TBMsg = UpdateWidth Float | UpdateX Float | UpdateY Float
 type alias TextBoxMsg = (TextBoxId, TBMsg)
 
-type SelectMsg = Select TextBoxId | Deselect
+type SelectMsg = Deselect | Select TextBoxId | DragStart TextBoxId | DragStop TextBoxId
 
 type alias MouseMoveMsg = { x : Float, y : Float }
 
@@ -122,9 +123,25 @@ update msg model =
 
         (Loaded (doc, volatile), SelectBox (Select id)) ->
             let _ = Debug.log "select" id in
-            let updateBox key (_, data) =  -- turn box to either selected or deselected
-                    if key == id then (EditState, data)
+            let updateBox key (state, data) =  -- turn box to either selected or deselected
+                    if key == id then (EditState Base, data)
                     else (ViewState, data)
+                textBoxes = Dict.map updateBox doc.textBoxes
+            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
+
+        (Loaded (doc, volatile), SelectBox (DragStart id)) ->
+            let _ = Debug.log "drag start" id in
+            let updateBox key (state, data) =
+                    if key == id then (EditState Drag, data)
+                    else (state, data)
+                textBoxes = Dict.map updateBox doc.textBoxes
+            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
+
+        (Loaded (doc, volatile), SelectBox (DragStop id)) ->
+            let _ = Debug.log "drag stop" id in
+            let updateBox key (state, data) =
+                    if key == id then (EditState Base, data)
+                    else (state, data)
                 textBoxes = Dict.map updateBox doc.textBoxes
             in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
 
@@ -153,9 +170,8 @@ update msg model =
             let updateBox _ (state, data) =  -- turn box to either selected or deselected
                     case state of
                         ViewState -> (state, data)
-                        EditState -> 
-                            let (x1, y1) = (x - volatile.anchorPos.x, y - volatile.anchorPos.y) in
-                            (state, { data | x = x1, y = y1 })
+                        EditState Base -> (state, data)
+                        EditState Drag -> (state, { data | x = x - volatile.anchorPos.x, y = y - volatile.anchorPos.y })
 
                 textBoxes = Dict.map updateBox doc.textBoxes
 
@@ -199,14 +215,18 @@ viewTextBox (k, (state, data)) =
         dragWidget = div [ css [ Tw.absolute, Tw.bg_black
                                , Css.top (px -10), Css.left (px -10)
                                , Css.width (px 20), Css.height (px 20)
-                               , Css.zIndex (int 10) ] ] [ dragIcon ]
+                               , Css.zIndex (int 10) ] 
+                         , onMouseDown (SelectBox (DragStart k))
+                         , onMouseUp (SelectBox (DragStop k))] [ dragIcon ]
 
     in let style = css <| [ Tw.absolute, Css.width (px data.width), Css.left (px data.x), Css.top (px data.y)] 
                  ++ case state of
                       ViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (hex "00000000"), Tw.p_4 ]
-                      EditState -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.p_4 ]
+                      EditState _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.p_4 ]
 
-           contents = (text data.text) :: (if state == EditState then [dragWidget] else [])
+           contents = (text data.text) :: (case state of
+                                            ViewState -> []
+                                            EditState _ -> [ dragWidget ])
 
     in div [ style, onClick (SelectBox (Select k)) ] contents
 
