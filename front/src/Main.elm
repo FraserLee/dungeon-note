@@ -3,7 +3,7 @@ module Main exposing (..)
 ------------------------------------ imports -----------------------------------
 
 import Browser
-import Browser.Events exposing (onMouseMove)
+import Browser.Events exposing (onMouseMove, onKeyDown)
 import Browser.Dom exposing (..)
 
 import Css exposing (..)
@@ -18,7 +18,7 @@ import Task
 
 import Http
 
-import Json.Decode exposing (Decoder, field, string)
+import Json.Decode as Decode exposing (Decoder, field, string)
 
 import Dict exposing (Dict)
 
@@ -69,18 +69,18 @@ fetchData = Http.get { url = "/fetch", expect = Http.expectJson LoadDocument dec
 -- not completely sure how to parse the keys back into ints, so I'll leave it for now
 
 decodeDocument : Decoder PersistentState
-decodeDocument = Json.Decode.dict decodeTextBox |> Json.Decode.map PersistentState
+decodeDocument = Decode.dict decodeTextBox |> Decode.map PersistentState
 
 decodeTextBox : Decoder TextBox
-decodeTextBox = Json.Decode.map2 Tuple.pair (Json.Decode.succeed ViewState) decodeTextBoxData
+decodeTextBox = Decode.map2 Tuple.pair (Decode.succeed ViewState) decodeTextBoxData
 
 decodeTextBoxData : Decoder TextBoxData
 decodeTextBoxData =
-    Json.Decode.map4 TextBoxData
+    Decode.map4 TextBoxData
         (field "text" string)
-        (field "width" Json.Decode.float)
-        (field "x" Json.Decode.float)
-        (field "y" Json.Decode.float)
+        (field "width" Decode.float)
+        (field "x" Decode.float)
+        (field "y" Decode.float)
 
 
 loadAnchorPos : Cmd Msg
@@ -203,16 +203,20 @@ viewTextBox (k, (state, data)) =
 --------------------------------- subscriptions --------------------------------
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    onMouseMove ( Json.Decode.map2 MouseMoveMsg
-        (field "pageX" Json.Decode.float)
-        (field "pageY" Json.Decode.float)
-    ) |> Sub.map MouseMove
+subscriptions _ = 
+    let mouseMove = onMouseMove ( Decode.map2 MouseMoveMsg
+            (field "pageX" Decode.float)
+            (field "pageY" Decode.float)
+          ) |> Sub.map MouseMove
 
+        -- subscribe to the escape key being pressed (damn this was harder than it should have been)
+        escape = Sub.map SelectBox <| onKeyDown (
+                Decode.field "key" 
+                Decode.string |> Decode.andThen 
+                (\key -> if key == "Escape" then Decode.succeed Deselect else Decode.fail "wrong key")
+            )
 
-
-
-
+    in Sub.batch [ mouseMove, escape ]
 
 
 
