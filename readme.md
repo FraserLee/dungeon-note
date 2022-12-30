@@ -13,9 +13,10 @@ more sustainable once the skeleton is in place.
     - [x] correct positioning relative to page
     - [ ] drag icon
         - [x] position, looks
-        - [ ] mouse-over change both mouse and own colour
-        - [ ] change colour while being dragged
-    - [x] drag and drop tristate mode system
+        - [x] mouse-over change both mouse and own colour
+        - [x] change colour while being dragged
+        - [ ] larger selection-div than element itself
+    - [x] drag and drop tri-state mode system
     - [ ] horizontal resize
     - [ ] rotation
         - while single-pixel wheel around the point of the thing, mouseover

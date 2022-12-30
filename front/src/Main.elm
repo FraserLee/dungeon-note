@@ -139,6 +139,8 @@ update msg model =
 
 
         ------------------------------ modify data -----------------------------
+        -- note: possibly delete this section entirely?
+
         (Loaded (doc, volatile), Changes cs) ->
             let _ = Debug.log "Changes:" cs in
             let updateBox data m = -- update one textbox data
@@ -204,10 +206,12 @@ viewTextBox (k, (state, data)) =
                        |> FeatherIcons.withSizeUnit "%"
                        |> FeatherIcons.toHtml [] |> fromUnstyled ]
 
-        dragWidget = div [ css [ Tw.absolute, Tw.bg_black
+        dragWidget = div [ css <| [ Tw.absolute
                                , Css.top (px -10), Css.left (px -10)
                                , Css.width (px 20), Css.height (px 20)
                                , Css.zIndex (int 10) ] 
+                               ++ ( if state == EditState Drag then [ Tw.bg_red_500 ] 
+                                    else [ Tw.bg_black, hover [ Tw.bg_red_700 ] ] )
                          , onMouseDown (SelectBox (DragStart k))
                          , onMouseUp (SelectBox (DragStop k))] [ dragIcon ]
 
