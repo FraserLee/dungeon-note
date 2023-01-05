@@ -11,16 +11,18 @@ more sustainable once the skeleton is in place.
 - [ ] Click textbox to bounding mode edit
     - [x] logical backing for drag and drop
     - [x] correct positioning relative to page
-    - [ ] drag icon
+    - [x] drag icon
         - [x] position, looks
         - [x] mouse-over change both mouse and own colour
         - [x] change colour while being dragged
-        - [ ] larger selection-div than element itself
+        - [x] larger selection-div than element itself
+        - [x] offset by position within drag icon
     - [x] drag and drop tri-state mode system
     - [ ] horizontal resize
     - [ ] rotation
         - while single-pixel wheel around the point of the thing, mouseover
     - [ ] deselect when clicking background
+
 - [ ] Have changes get pushed backwards to python
 
 - [x] Add a global css file

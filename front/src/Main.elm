@@ -25,7 +25,7 @@ import Dict exposing (Dict)
 ---------------------------------- model types ---------------------------------
 
 type alias TextBox = (TextBoxState, TextBoxData)
-type TextBoxEditState = Base | Drag
+type TextBoxEditState = Base | Drag { iconMouseOffsetX : Float, iconMouseOffsetY : Float }
 type TextBoxState = ViewState | EditState TextBoxEditState
 type alias TextBoxId = String
 type alias TextBoxData = { text : String
@@ -33,9 +33,9 @@ type alias TextBoxData = { text : String
                          , x : Float
                          , y : Float }
 
-type alias AnchorPos = { x : Float, y : Float }
-
-type alias VolatileState = { anchorPos : AnchorPos }
+type alias VolatileState = { anchorPos : { x : Float, y : Float }
+                           , mousePos : { x : Float, y : Float }
+                           }
 
 type alias PersistentState = { textBoxes : Dict TextBoxId TextBox }
 
@@ -53,7 +53,7 @@ type SelectMsg = Deselect | Select TextBoxId | DragStart TextBoxId | DragStop Te
 type alias MouseMoveMsg = { x : Float, y : Float }
 
 type Msg = LoadDocument (Result Http.Error PersistentState)
-         | SetAnchorPos AnchorPos
+         | SetAnchorPos { x : Float, y : Float }
          | Changes (List TextBoxMsg) 
          | SelectBox SelectMsg
          | MouseMove MouseMoveMsg
@@ -95,8 +95,8 @@ loadAnchorPos = getElement "anchor-div"
                 let _ = Debug.log "Failed to load anchor position" er in
                 SetAnchorPos { x = 0, y = 0 })
 
-------------------------------------- logic ------------------------------------
 
+------------------------------------- logic ------------------------------------
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -104,13 +104,18 @@ update msg model =
 
         -------------------- load document, update volatiles -------------------
 
-        (_, LoadDocument (Ok data)) -> (Loaded (data, { anchorPos = { x = 0, y = 0 } }), Cmd.batch [loadAnchorPos])
+        (_, LoadDocument (Ok data)) -> (
+                Loaded ( data, 
+                    { anchorPos = { x = 0, y = 0 } 
+                    , mousePos = { x = 0, y = 0 } }
+                ), Cmd.batch [loadAnchorPos])
+
         (_, LoadDocument (Err err)) -> (Failed err, Cmd.none)
 
         (_, SetAnchorPos pos) -> 
                 -- let _ = Debug.log "anchor pos" pos in 
                 case model of
-                    Loaded (data, _) -> (Loaded (data, { anchorPos = pos }), Cmd.none)
+                    Loaded (data, volatiles) -> (Loaded (data, { volatiles | anchorPos = pos }), Cmd.none)
                     _ -> (model, Cmd.none)
 
 
@@ -128,9 +133,17 @@ update msg model =
                     if selectMode == Deselect then (ViewState, data)
                     else if key /= target then (state, data)
                     else case (selectMode, state) of
+
                         (Select _, ViewState) -> (EditState Base, data)
-                        (DragStart _, EditState Base) -> (EditState Drag, data)
-                        (DragStop _, EditState Drag) -> (EditState Base, data)
+
+                        (DragStart _, EditState Base) -> 
+                            (EditState (Drag { 
+                                iconMouseOffsetX = volatile.mousePos.x - data.x - volatile.anchorPos.x,
+                                iconMouseOffsetY = volatile.mousePos.y - data.y - volatile.anchorPos.y
+                            } ), data)
+
+                        (DragStop _, EditState (Drag _)) -> (EditState Base, data)
+
                         _ -> (state, data)
 
                 textBoxes = Dict.map updateBox doc.textBoxes
@@ -165,19 +178,22 @@ update msg model =
                     case state of
                         ViewState -> (state, data)
                         EditState Base -> (state, data)
-                        EditState Drag -> 
-                            let x1 = (x - volatile.anchorPos.x) - data.x
-                                y1 = (y - volatile.anchorPos.y) - data.y
-                            in (state, { data | x = data.x + x1 * 0.8, y = data.y + y1 * 0.8 })
+                        EditState (Drag { iconMouseOffsetX, iconMouseOffsetY }) ->
+                            let x1 = x - volatile.anchorPos.x - iconMouseOffsetX
+                                y1 = y - volatile.anchorPos.y - iconMouseOffsetY
+                            in (state, { data | x = x1, y = y1 })
 
                 textBoxes = Dict.map updateBox doc.textBoxes
+
+                doc1 = { doc | textBoxes = textBoxes }
+                volatiles1 = { volatile | mousePos = { x = x, y = y } }
 
             -- I'm not entirely sure what could invalidate the anchor position
             -- (definitely window resize, but possibly some other things) so
             -- I'll just reload it with each mouse move till performance
             -- becomes an issue
 
-            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), loadAnchorPos)
+            in (Loaded (doc1, volatiles1), Cmd.batch [loadAnchorPos])
 
         -- fall-through (just do nothing, probably tried to act while document loading) 
         _ -> (model, Cmd.none)
@@ -210,14 +226,16 @@ viewTextBox (k, (state, data)) =
 
         dragBox = div [ css <| [ Tw.flex, Tw.justify_center, Tw.items_center
                                , Css.width (px 20), Css.height (px 20) ]
-                               ++ ( if state == EditState Drag then [ Tw.bg_red_500 ] 
-                                    else [ Tw.bg_black, hover [ Tw.bg_red_700 ] ] )
+                               ++ (case state of
+                                       EditState (Drag _) -> [ Tw.bg_red_500 ]
+                                       _ -> [ Tw.bg_black, hover [ Tw.bg_red_700 ] ] )
                       ] [ dragIcon ]
 
+        -- invisible selector that's a bit bigger than the icon itself
         dragWidget = div [ css [ Tw.absolute, Tw.flex, Tw.justify_center, Tw.items_center
                                , Tw.bg_transparent, Tw.cursor_move
-                               , Css.top (px -15), Css.left (px -15)
-                               , Css.width (px 30), Css.height (px 30)
+                               , Css.top (px -20), Css.left (px -20)
+                               , Css.width (px 40), Css.height (px 40)
                                , Css.zIndex (int 10) ] 
                          , onMouseDown (SelectBox (DragStart k))
                          , onMouseUp (SelectBox (DragStop k))] [ dragBox ]
@@ -256,7 +274,4 @@ subscriptions _ =
 
 main : Program () Model Msg
 main = Browser.element { init = init, update = update, view = view >> toUnstyled, subscriptions = subscriptions }
-
-
-
 
