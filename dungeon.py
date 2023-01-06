@@ -10,13 +10,11 @@ import asyncio
 import websockets
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
-
+from hachiko.hachiko import AIOWatchdog, AIOEventHandler
 
 
 
 # -------------------------------- document data -------------------------------
-
-
 
 
 @dataclasses.dataclass
@@ -97,52 +95,38 @@ if not debug_mode and not os.path.exists('build/index.html'):
 # ------------------------------ watch for changes -----------------------------
 
 
-# Just completely sidestepping any efficiency or proper async design here for
-# the moment. Look more closely at what we need to accomplish and how to best
-# design stuff to that end once I'm porting to whatever ends up being the
-# language for the backend.
-
-def send_reload_command():
-    print('A')
-    async def s():
-        print('B')
-        async with websockets.connect('ws://localhost:3001') as websocket:
-            print('C')
-            await websocket.send('reload')
-            print('D')
-    asyncio.run(s())
-
-last_target_time = -1000
 class TargetWatch(FileSystemEventHandler):
     # when the target file is modified, reload it into the document by calling
     # load_document, then send a websocket message to tell the client to reload.
 
+    last_time = -1000
+
     @staticmethod
     def on_any_event(_):
-        global last_target_time
-        if time.time() - last_target_time < 0.15: return # rudimentary debounce
+        if time.time() - TargetWatch.last_time < 0.1: return # rudimentary debounce
 
         print('reloading document...', end='')
         load_document(file_path)
-        send_reload_command()
+        # send_reload_command() ------------------------------------------------
         print('done')
 
-        last_target_time = time.time()
+        TargetWatch.last_time = time.time()
 
-last_self_time = -1000
 class SelfWatch(FileSystemEventHandler):
+
+    last_time = -1000
+
     @staticmethod
     def on_any_event(_):
-
-        global last_self_time
-        if time.time() - last_self_time < 0.15: return # rudimentary debounce
+        if time.time() - SelfWatch.last_time < 0.1: return # rudimentary debounce
 
         print('rebuilding frontend...', end='')
         clean_frontend()
         build_frontend()
         print('done')
 
-        last_self_time = time.time()
+        SelfWatch.last_time = time.time()
+
 
 # watch for changes in the target file
 target_event_handler = TargetWatch()
