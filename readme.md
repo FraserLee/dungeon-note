@@ -24,10 +24,12 @@ more sustainable once the skeleton is in place.
     - [x] drag and drop tri-state mode system
 
 - [x] Have changes get pushed backwards to python
+- [ ] Only push back on dragstop, not continually 
 
 - [x] Run python script with a file argument. Grab single large paragraph from there.
 - [x] Watch file / dir, re-grab stuff when it changes (pull behaviour from old project)
 - [ ] Force a refresh when the underlying data changes
+     swap to /ws then delete this line
 
 - [ ] Proper Markdown parsing
 
