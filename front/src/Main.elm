@@ -1,7 +1,5 @@
 module Main exposing (..)
 
------------------------------------- imports -----------------------------------
-
 import Browser
 import Browser.Events exposing (onMouseMove, onKeyDown)
 import Browser.Dom exposing (..)

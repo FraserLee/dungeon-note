@@ -95,22 +95,15 @@ if not debug_mode and not os.path.exists('build/index.html'):
 # ------------------------------ watch for changes -----------------------------
 
 
-class TargetWatch(FileSystemEventHandler):
+class TargetWatch(AIOEventHandler):
     # when the target file is modified, reload it into the document by calling
     # load_document, then send a websocket message to tell the client to reload.
 
-    last_time = -1000
-
-    @staticmethod
-    def on_any_event(_):
-        if time.time() - TargetWatch.last_time < 0.1: return # rudimentary debounce
-
+    async def on_any_event(self, _):
         print('reloading document...', end='')
         load_document(file_path)
-        # send_reload_command() ------------------------------------------------
+        # send reload command here
         print('done')
-
-        TargetWatch.last_time = time.time()
 
 class SelfWatch(FileSystemEventHandler):
 
@@ -129,11 +122,16 @@ class SelfWatch(FileSystemEventHandler):
 
 
 # watch for changes in the target file
-target_event_handler = TargetWatch()
-target_observer = Observer()
-target_observer.schedule(target_event_handler, dir_path, recursive=True)
-target_event_handler.on_any_event(None) # trigger an initial load of the document
-target_observer.start()
+async def watch_target():
+    async with websockets.connect("ws://localhost:443") as websocket:
+        target_event_handler = TargetWatch()
+        await target_event_handler.on_any_event(None) # trigger an initial load of the document
+        watch = AIOWatchdog(dir_path, event_handler=target_event_handler, recursive=True)
+        watch.start()
+        while True:
+            await asyncio.sleep(0.1)
+
+asyncio.new_event_loop().run_until_complete(watch_target())
 
 # watch for changes in the development files if in debug mode
 if debug_mode:
