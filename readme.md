@@ -25,11 +25,13 @@ more sustainable once the skeleton is in place.
 
 - [x] Have changes get pushed backwards to python
 
-- [ ] Run python script with a file argument. Grab single large paragraph from there.
-- [ ] Watch file / dir, re-grab stuff when it changes (pull behaviour from old project)
-- [ ] Save Changes back to file when they're made
+- [x] Run python script with a file argument. Grab single large paragraph from there.
+- [x] Watch file / dir, re-grab stuff when it changes (pull behaviour from old project)
+- [ ] Force a refresh when the underlying data changes
 
 - [ ] Proper Markdown parsing
+
+- [ ] Save Changes back to file when they're made
 
 - [ ] Further Textbox edit capabilities
     - [ ] horizontal resize
@@ -45,4 +47,5 @@ more sustainable once the skeleton is in place.
 - [ ] Write tests
 - [ ] don't select text when dragging
 - [ ] dynamically adjust pivot so stuff is never offscreen to the left
+- [ ] glorious unified system
 - [ ] find out other things that should be on this list.
