@@ -19,8 +19,6 @@ class Text:
 
 print("serving at http://localhost:3000")
 
-# The counter that will be incremented by the webpage
-counter = 0
 # The text boxes that will be displayed on the webpage
 textBlocks = {
         0: Text('Hello ' * 50, -300, 0, 600), 
@@ -51,17 +49,25 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             case _: super().do_GET()
 
     def do_POST(self):
-        match self.path:
-            case '/increment':
-                # Increment the counter
-                global counter
-                counter += 1
-                print('Counter:', counter)
-                # Send the new value back to the webpage
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({'counter': counter}).encode())
+        if not self.path.startswith('/update/'): 
+            return
+
+        # update one of the textboxes. First grab the id:
+        id = self.path.split('/')[2]
+
+        # Then grab the data from the request
+        length = int(self.headers['Content-Length'])
+        data = json.loads(self.rfile.read(length))
+
+        # Lastly update the textbox
+        textBlocks[int(id)] = Text(data['text'], data['x'], data['y'], data['width'])
+
+        # Send back an empty response
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        self.wfile.write(b'{}')
+
 
 # Start the server, and quit when Ctrl+C is pressed
 try:

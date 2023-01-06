@@ -8,7 +8,11 @@ more sustainable once the skeleton is in place.
 - [x] Swap to elm for frontend
 - [x] Transfer position of textboxes to frontend
 - [x] Ability to modify data within frontend
-- [ ] Click textbox to bounding mode edit
+
+- [x] Add a global css file
+- [x] Re-add styling from dungeon-note-2
+
+- [x] Click textbox to bounding mode edit
     - [x] logical backing for drag and drop
     - [x] correct positioning relative to page
     - [x] drag icon
@@ -18,23 +22,24 @@ more sustainable once the skeleton is in place.
         - [x] larger selection-div than element itself
         - [x] offset by position within drag icon
     - [x] drag and drop tri-state mode system
+
+- [x] Have changes get pushed backwards to python
+
+- [ ] Run python script with a file argument. Grab single large paragraph from there.
+- [ ] Watch file / dir, re-grab stuff when it changes (pull behaviour from old project)
+- [ ] Save Changes back to file when they're made
+
+- [ ] Proper Markdown parsing
+
+- [ ] Further Textbox edit capabilities
     - [ ] horizontal resize
     - [ ] rotation
         - while single-pixel wheel around the point of the thing, mouseover
     - [ ] deselect when clicking background
 
-- [ ] Have changes get pushed backwards to python
-
-- [x] Add a global css file
-- [x] Re-add styling from dungeon-note-2
-
-- [ ] Watch file in python, grab list of textboxes from there
-- [ ] Save Changes when made
-
-- [ ] Proper Markdown parsing
-
 
 - [ ] Re-add menu bar
+- [ ] Genericize from "TextBox" to element sum-type
 - [ ] Lines
 - [ ] Math
 - [ ] Write tests

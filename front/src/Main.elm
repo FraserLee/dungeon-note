@@ -19,6 +19,7 @@ import Task
 import Http
 
 import Json.Decode as Decode exposing (Decoder, field, string)
+import Json.Encode as Encode
 
 import Dict exposing (Dict)
 
@@ -34,8 +35,7 @@ type alias TextBoxData = { text : String
                          , y : Float }
 
 type alias VolatileState = { anchorPos : { x : Float, y : Float }
-                           , mousePos : { x : Float, y : Float }
-                           }
+                           , mousePos : { x : Float, y : Float } }
 
 type alias PersistentState = { textBoxes : Dict TextBoxId TextBox }
 
@@ -45,18 +45,15 @@ type Model = Loading
 
 --------------------------------- message types --------------------------------
 
-type TBMsg = UpdateWidth Float | UpdateX Float | UpdateY Float
-type alias TextBoxMsg = (TextBoxId, TBMsg)
-
 type SelectMsg = Deselect | Select TextBoxId | DragStart TextBoxId | DragStop TextBoxId
 
 type alias MouseMoveMsg = { x : Float, y : Float }
 
 type Msg = LoadDocument (Result Http.Error PersistentState)
          | SetAnchorPos { x : Float, y : Float }
-         | Changes (List TextBoxMsg) 
          | SelectBox SelectMsg
          | MouseMove MouseMoveMsg
+         | Posted (Result Http.Error ()) -- not used, but required by Http.post
 
 init : () -> (Model, Cmd Msg)
 init _ = (Loading, fetchData)
@@ -151,49 +148,36 @@ update msg model =
             in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
 
 
-        ------------------------------ modify data -----------------------------
-        -- note: possibly delete this section entirely?
-
-        (Loaded (doc, volatile), Changes cs) ->
-            let _ = Debug.log "Changes:" cs in
-            let updateBox data m = -- update one textbox data
-                    case m of
-                        UpdateWidth w -> { data | width = w }
-                        UpdateX x -> { data | x = x }
-                        UpdateY y -> { data | y = y }
-
-                -- apply one message to the document
-                apply (id, m) tb = Dict.update id (Maybe.map (\(state, data) -> (state, updateBox data m))) tb
-
-                -- apply all messages one by one
-                textBoxes = List.foldl apply doc.textBoxes cs
-
-            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
-
         ------------------------------ mouse move ------------------------------
 
         (Loaded (doc, volatile), MouseMove { x, y }) ->
             -- let _ = Debug.log "MouseMove:" (x, y) in
-            let updateBox _ (state, data) =  -- turn box to either selected or deselected
-                    case state of
-                        ViewState -> (state, data)
-                        EditState Base -> (state, data)
-                        EditState (Drag { iconMouseOffsetX, iconMouseOffsetY }) ->
-                            let x1 = x - volatile.anchorPos.x - iconMouseOffsetX
-                                y1 = y - volatile.anchorPos.y - iconMouseOffsetY
-                            in (state, { data | x = x1, y = y1 })
 
-                textBoxes = Dict.map updateBox doc.textBoxes
+            -- mapAccum : (k -> v -> a -> (v, a)) -> Dict k v -> a -> (Dict k v, a)
+
+            -- if a box is selected and in drag mode, update its position and report the change
+            let processBox k (state, data) cs = case state of
+
+                    EditState (Drag { iconMouseOffsetX, iconMouseOffsetY }) ->
+                        let x1 = x - volatile.anchorPos.x - iconMouseOffsetX
+                            y1 = y - volatile.anchorPos.y - iconMouseOffsetY
+                            data1 = { data | x = x1, y = y1 }
+                        in ((state, data1), (updateTextBox k data1) :: cs)
+
+                    _ -> ((state, data), cs)
+
+                (textBoxes, changes) = mapAccum processBox doc.textBoxes []
 
                 doc1 = { doc | textBoxes = textBoxes }
                 volatiles1 = { volatile | mousePos = { x = x, y = y } }
+
 
             -- I'm not entirely sure what could invalidate the anchor position
             -- (definitely window resize, but possibly some other things) so
             -- I'll just reload it with each mouse move till performance
             -- becomes an issue
 
-            in (Loaded (doc1, volatiles1), Cmd.batch [loadAnchorPos])
+            in (Loaded (doc1, volatiles1), Cmd.batch (loadAnchorPos :: changes))
 
         -- fall-through (just do nothing, probably tried to act while document loading) 
         _ -> (model, Cmd.none)
@@ -252,7 +236,30 @@ viewTextBox (k, (state, data)) =
     in div [ style, onClick (SelectBox (Select k)) ] contents
 
 
---------------------------------- subscriptions --------------------------------
+------------------------------------ effects -----------------------------------
+
+-- note: I'm just sending over an entire textbox at the moment, but I can probably
+-- be a lot more surgical about it if need comes
+updateTextBox : TextBoxId -> TextBoxData -> Cmd Msg
+updateTextBox id data = 
+    let _ = Debug.log "Push update to server:" (id, data) in
+    let url = "/update/" ++ id
+        body = encodeTextBox data in
+    Http.post { body = Http.jsonBody body
+              , expect = Http.expectWhatever Posted
+              , url = url
+              }
+
+encodeTextBox : TextBoxData -> Encode.Value
+encodeTextBox { text, width, x, y } =
+    Encode.object
+        [ ("text", Encode.string text)
+        , ("width", Encode.float width)
+        , ("x", Encode.float x)
+        , ("y", Encode.float y)
+        ]
+
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ = 
@@ -271,7 +278,14 @@ subscriptions _ =
     in Sub.batch [ mouseMove, escape ]
 
 
-
 main : Program () Model Msg
 main = Browser.element { init = init, update = update, view = view >> toUnstyled, subscriptions = subscriptions }
+
+----------------------------------- util junk ----------------------------------
+
+mapAccum : (comparable -> v -> a -> (v, a)) -> Dict comparable v -> a -> (Dict comparable v, a)
+mapAccum f dict initial = Dict.foldl (\k v (dict1, acc) ->
+                            let (v1, acc1) = f k v acc
+                            in (Dict.insert k v1 dict1, acc1)
+                        ) (Dict.empty, initial) dict
 
