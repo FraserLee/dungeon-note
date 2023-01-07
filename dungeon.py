@@ -3,11 +3,9 @@
 import os
 import sys
 import time
-import json
 import dataclasses
 import http.server
-import asyncio
-import websockets
+
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from hachiko.hachiko import AIOWatchdog, AIOEventHandler
@@ -119,9 +117,49 @@ class SelfWatch(FileSystemEventHandler):
         print('done')
 
         SelfWatch.last_time = time.time()
+        
 
 
-# watch for changes in the target file
+
+
+
+
+
+
+
+
+
+
+class Handler(sse.Handler):
+    @asyncio.coroutine
+    def handle_request(self):
+        while True:
+            yield from asyncio.sleep(2)
+            self.send('foo')
+            yield from asyncio.sleep(2)
+            self.send('bar', event='wakeup')
+
+start_server = sse.serve(Handler, 'localhost', 8888)
+asyncio.get_event_loop().run_until_complete(start_server)
+asyncio.get_event_loop().run_forever()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+watch for changes in the target file
 async def watch_target():
     async with websockets.connect("ws://localhost:443") as websocket:
         target_event_handler = TargetWatch()
