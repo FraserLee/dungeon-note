@@ -40,55 +40,6 @@ def save_document(path):
 
 
 
-# ------------------------------------ setup -----------------------------------
-
-args, flags = [], set()
-for arg in sys.argv[1:]:
-    if arg.startswith('-'):
-        flags.add(arg.lstrip('-')[0])
-    else:
-        args.append(arg)
-
-
-if len(args) != 1:
-    print('usage: dungeon.py [--debug | -d] <file_path>')
-    exit(1)
-
-# file and directory to watch
-file_path = os.path.abspath(sys.argv[-1])
-dir_path = os.path.dirname(file_path)
-debug_mode = 'd' in flags
-
-# cd to the directory of this script
-pwd = os.path.dirname(os.path.abspath(__file__))
-os.chdir(pwd)
-
-print(f'Watching {dir_path}\n- press ctrl+c to exit\n')
-
-def build_frontend(optimize = False):
-    # create folder
-    if not os.path.exists('build'): os.mkdir('build')
-
-    # copy index.html
-    os.system('cp index.html build/index.html')
-
-    # build elm stuff
-    os.chdir('front')
-    os.system('elm make src/Main.elm --output=../build/elm.js' + (' --optimize' if optimize else ''))
-
-    # move back to place
-    os.chdir(pwd)
-
-
-def clean_frontend():
-    os.system('rm -rf build')
-
-
-# if not in debug mode and if there isn't an existing frontend build, build it.
-if not debug_mode and not os.path.exists('build/index.html'):
-    print('Building frontend...')
-    build_frontend()
-
 # ------------------------------ watch for changes -----------------------------
 
 
@@ -142,8 +93,6 @@ if debug_mode:
 
 # --------------------------------- run server ---------------------------------
 
-print("serving at http://localhost:3000")
-
 # https://stackoverflow.com/a/51286749/7602154
 class encoder(json.JSONEncoder):
     def default(self, o):
@@ -154,29 +103,6 @@ class encoder(json.JSONEncoder):
 
 # The handler for the webpage
 class MyHandler(http.server.SimpleHTTPRequestHandler):
-
-    def log_message(self, *_): pass # disable logging
-
-    def do_GET(self):
-        match self.path:
-            case '/':
-                # Send the HTML code for the webpage
-                self.send_response(200)
-                self.send_header('Content-type', 'text/html')
-                self.end_headers()
-                # file located at index.html
-                with open('build/index.html', 'rb') as f:
-                    self.wfile.write(f.read())
-
-
-            case '/fetch':
-                # Send the textboxes
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps(document, cls=encoder).encode('utf-8'))
-
-            case _: super().do_GET()
 
     def do_POST(self):
         if not self.path.startswith('/update/'): 

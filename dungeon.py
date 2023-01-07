@@ -51,7 +51,7 @@ if debug_mode or not os.path.exists('build/index.html'):
 
 # run the server
 os.chdir('back')
-os.system(f'cargo run -- "{file_path}"')
+os.system(f'cargo run -- "{file_path}" "{pwd}/build"')
 os.chdir(pwd)
 
 
