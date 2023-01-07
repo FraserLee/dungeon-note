@@ -1,8 +1,23 @@
-use warp::Filter;
+use warp::{sse::Event, Filter};
+
 use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
+
 use lazy_static::lazy_static;
+
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+use futures_util::StreamExt;
+use std::convert::Infallible;
+use std::time::Duration;
+use tokio::time::interval;
+use tokio_stream::wrappers::IntervalStream;
+
+// create server-sent event
+fn sse_counter(counter: u64) -> Result<Event, Infallible> {
+    Ok(warp::sse::Event::default().data(counter.to_string()))
+}
+
 
 // -- document data ------------------------------------------------------------
 
@@ -38,6 +53,7 @@ lazy_static! {
 #[tokio::main]
 async fn main() {
 
+
     let doc_path = std::env::args().nth(1).unwrap();
     let front_path = std::env::args().nth(2).unwrap();
 
@@ -57,13 +73,27 @@ async fn main() {
             warp::reply()
         });
 
-    let routes = front.or(fetch).or(static_files).or(update);
+    let tick = warp::path("refresh").and(warp::get()).map(|| {
+        let mut counter: u64 = 0;
+        // create server event source
+        let interval = interval(Duration::from_secs(15));
+        let stream = IntervalStream::new(interval);
+        let event_stream = stream.map(move |_| {
+            counter += 1;
+            sse_counter(counter)
+        });
+        // reply using server-sent events
+        warp::sse::reply(event_stream)
+    });
+
+    let routes = front.or(fetch).or(static_files).or(update).or(tick);
 
     // -- run server -----------------------------------------------------------
 
-    println!("serving at http://localhost:3100");
     println!("doc path: {}", doc_path);
-    println!(" -- press ctrl-c to stop --");
+    println!(" --------------------------------------");
+    println!(" -- serving at http://localhost:3100 --");
+    println!(" -------- press ctrl-c to stop --------");
 
     warp::serve(routes).run(([127, 0, 0, 1], 3100)).await;
 

@@ -140,6 +140,14 @@ button {
   <script src="elm.js"></script>
   <script> 
       var app = Elm.Main.init({ node: document.getElementById("elm") }); 
+      
+      alert("loaded");
+
+      var refreshSource = new EventSource("/refresh");
+
+      refreshSource.onmessage = (event) => {
+          alert("refresh");
+      };
   </script>
 </body>
 </html>
