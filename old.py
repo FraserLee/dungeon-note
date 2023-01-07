@@ -76,36 +76,3 @@ if debug_mode:
     self_event_handler.on_any_event(None) # trigger an initial build
     self_observer.start()
 
-# --------------------------------- run server ---------------------------------
-
-# The handler for the webpage
-class MyHandler(http.server.SimpleHTTPRequestHandler):
-
-    def do_POST(self):
-        if not self.path.startswith('/update/'): 
-            return
-
-        # update one of the textboxes. First grab the id:
-        id = self.path.split('/')[2]
-
-        # Then grab the data from the request
-        length = int(self.headers['Content-Length'])
-        data = json.loads(self.rfile.read(length))
-
-        # Lastly update the textbox
-        document[int(id)] = Text(data['text'], data['x'], data['y'], data['width'])
-
-        # Send back an empty response
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
-        self.wfile.write(b'{}')
-
-
-# Start the server, and quit when Ctrl+C is pressed
-try:
-    httpd = http.server.HTTPServer(('', 3000), MyHandler)
-    httpd.serve_forever()
-except KeyboardInterrupt:
-    sys.exit(0)
-
