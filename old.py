@@ -11,21 +11,6 @@ from watchdog.observers import Observer
 
 
 
-# -------------------------------- document data -------------------------------
-
-
-@dataclasses.dataclass
-class Text:
-    text   : str
-    x      : float
-    y      : float
-    width  : float
-
-# The text boxes that will be displayed on the webpage
-document = {
-        0: Text('Hello ' * 50, -300, 0, 600), 
-        1: Text('World ' * 30, 100, 300, 300)
-    }
 
 # todo: turn this into the real thing.
 def load_document(path):
@@ -92,14 +77,6 @@ if debug_mode:
     self_observer.start()
 
 # --------------------------------- run server ---------------------------------
-
-# https://stackoverflow.com/a/51286749/7602154
-class encoder(json.JSONEncoder):
-    def default(self, o):
-        if dataclasses.is_dataclass(o):
-            return dataclasses.asdict(o)
-        return super().default(o)
-
 
 # The handler for the webpage
 class MyHandler(http.server.SimpleHTTPRequestHandler):
