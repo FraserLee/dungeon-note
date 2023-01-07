@@ -29,6 +29,8 @@ more sustainable once the skeleton is in place.
 - [x] Run python script with a file argument. Grab single large paragraph from there.
 - [x] Watch file / dir, re-grab stuff when it changes (pull behaviour from old project)
 
+- [ ] Move backend to Rust.
+
 - [ ] Proper Markdown parsing
 
 - [ ] Save Changes back to file when they're made
