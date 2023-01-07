@@ -139,18 +139,7 @@ button {
   <pre id="elm"></pre>
   <script src="build/elm.js"></script>
   <script> 
-      var app = Elm.Main.init({ 
-          node: document.getElementById("elm")
-      }); 
-
-      alert("Hello, world!");
-
-      var socket = new WebSocket("ws://localhost:3001");
-
-      socket.addEventListener("reload", function (event) {
-          alert("reload");
-          // app.ports.reload.send(event.data);
-      });
+      var app = Elm.Main.init({ node: document.getElementById("elm") }); 
   </script>
 </body>
 </html>
