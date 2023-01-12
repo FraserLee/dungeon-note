@@ -17,7 +17,6 @@ use notify_debouncer_mini::new_debouncer;
 
 
 
-
 // -- document data ------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -31,22 +30,7 @@ struct Text {
 lazy_static! {
     static ref DOC_PATH: String = std::env::args().nth(1).unwrap();
     static ref FRONT_PATH: String = std::env::args().nth(2).unwrap();
-    static ref DOCUMENT: Arc<Mutex<HashMap<String, Text>>> = {
-        let mut document = HashMap::new();
-        document.insert("foo".to_string(), Text {
-            text: "Hello ".repeat(50),
-            x: -300.0,
-            y: 0.0,
-            width: 600.0,
-        });
-        document.insert("bar".to_string(), Text {
-            text: "World ".repeat(30),
-            x: 100.0,
-            y: 300.0,
-            width: 300.0,
-        });
-        Arc::new(Mutex::new(document))
-    };
+    static ref DOCUMENT: Arc<Mutex<HashMap<String, Text>>> = Arc::new(Mutex::new(HashMap::new()));
 
     // quick and dirty cross-thread signalling, by polling a bool to see if
     // we need to refresh stuff every second. Go back and try to figure out 
@@ -56,8 +40,6 @@ lazy_static! {
 
     static ref DOCUMENT_REFRESHED: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 }
-
-
 
 
 
@@ -81,15 +63,15 @@ fn load_document() {
     println!("Loaded from disk: {}", &*DOC_PATH);
 }
 
-fn save_document() { // todo: this too
-    let document = DOCUMENT.lock().unwrap();
-
-    let text = document.get("foo").unwrap().text.clone();
-
-    std::fs::write(&*DOC_PATH, text).unwrap();
-
-    println!("Saved to disk: {}", &*DOC_PATH);
-}
+// fn save_document() { // todo: this too
+//     let document = DOCUMENT.lock().unwrap();
+//
+//     let text = document.get("foo").unwrap().text.clone();
+//
+//     std::fs::write(&*DOC_PATH, text).unwrap();
+//
+//     println!("Saved to disk: {}", &*DOC_PATH);
+// }
 
 
 
@@ -150,7 +132,7 @@ async fn main() {
     let file_change_sse = warp::path("file_change").and(warp::get()).map(|| {
         let stream = stream! {
             loop {
-                tokio::time::sleep(Duration::from_millis(500)).await;
+                tokio::time::sleep(Duration::from_millis(250)).await;
                 if *DOCUMENT_REFRESHED.lock().unwrap() {
                     *DOCUMENT_REFRESHED.lock().unwrap() = false;
                     yield sse_event();
@@ -159,8 +141,6 @@ async fn main() {
         };
         warp::sse::reply(warp::sse::keep_alive().stream(stream))
     });
-
-
 
     let routes = front.or(fetch).or(static_files).or(update).or(file_change_sse);
 

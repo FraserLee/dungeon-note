@@ -144,7 +144,7 @@ button {
       var fileChangeSource = new EventSource("/file_change");
 
       fileChangeSource.onmessage = (event) => {
-          alert("File changed");
+          app.ports.fileChange.send(event.data);
       }
   </script>
 </body>

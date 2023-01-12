@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Browser
 import Browser.Events exposing (onMouseMove, onKeyDown)
@@ -20,6 +20,10 @@ import Json.Decode as Decode exposing (Decoder, field, string)
 import Json.Encode as Encode
 
 import Dict exposing (Dict)
+
+------------------------------------- ports ------------------------------------
+
+port fileChange : (String -> msg) -> Sub msg
 
 ---------------------------------- model types ---------------------------------
 
@@ -52,6 +56,7 @@ type Msg = LoadDocument (Result Http.Error PersistentState)
          | SelectBox SelectMsg
          | MouseMove MouseMoveMsg
          | Posted (Result Http.Error ()) -- not used, but required by Http.post
+         | FileChange
 
 init : () -> (Model, Cmd Msg)
 init _ = (Loading, fetchData)
@@ -101,11 +106,14 @@ update msg model =
 
         (_, LoadDocument (Ok data)) -> (
                 Loaded ( data, 
-                    { anchorPos = { x = 0, y = 0 } 
+                    { anchorPos = { x = 0, y = 0 }
                     , mousePos = { x = 0, y = 0 } }
                 ), Cmd.batch [loadAnchorPos])
 
         (_, LoadDocument (Err err)) -> (Failed err, Cmd.none)
+
+        -- reload on hearing that the file has changed
+        (_, FileChange) -> (Loading, fetchData)
 
         (_, SetAnchorPos pos) -> 
                 -- let _ = Debug.log "anchor pos" pos in 
@@ -188,7 +196,11 @@ view : Model -> Html Msg
 view model =
     case model of
         Failed err -> text ("Failed to load data: " ++ (Debug.toString err))
-        Loading -> text "Loading..."
+
+        Loading -> 
+            div [ css [ Tw.absolute, Tw.inset_0, Tw.flex, Tw.items_center, Tw.justify_center ] ]
+                [ h2 [ css [ Tw.text_center, Tw.opacity_25 ] ] [ text "loading..." ] ]
+
         Loaded (doc, _) ->
               let textBoxesHtml = List.map viewTextBox (Dict.toList doc.textBoxes)
               in div [ css [ Tw.top_0, Tw.w_full, Tw.h_screen ] ]
@@ -273,7 +285,10 @@ subscriptions _ =
                 (\key -> if key == "Escape" then Decode.succeed Deselect else Decode.fail "wrong key")
             )
 
-    in Sub.batch [ mouseMove, escape ]
+        -- subscribe to a SSE stream to hear if the file changed
+        file = fileChange (\_ -> FileChange)
+
+    in Sub.batch [ mouseMove, escape, file ]
 
 
 main : Program () Model Msg
