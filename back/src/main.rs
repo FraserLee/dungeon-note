@@ -1,6 +1,7 @@
-use warp::Filter;
+use warp::{sse, Filter};
 
 use serde::{Serialize, Deserialize};
+use async_stream::stream;
 
 use lazy_static::lazy_static;
 
@@ -9,6 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use std::path::Path;
 use std::time::Duration;
+use std::convert::Infallible;
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -45,9 +47,16 @@ lazy_static! {
         });
         Arc::new(Mutex::new(document))
     };
+
+    // quick and dirty cross-thread signalling, by polling a bool to see if
+    // we need to refresh stuff every second. Go back and try to figure out 
+    // the correct solution again later.
+    //
+    // https://gist.github.com/FraserLee/b75d88642827c5e0f49c0b8d96ad848e
+
+    static ref DOCUMENT_REFRESHED: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 }
 
-static DOCUMENT_REFRESHED: bool = false;
 
 
 
@@ -84,8 +93,6 @@ fn save_document() { // todo: this too
 
 
 
-
-
 // -- main ---------------------------------------------------------------------
 
 #[tokio::main]
@@ -109,7 +116,10 @@ async fn main() {
 
         loop {
             match rx.recv() {
-                Ok(_) => { load_document(); },
+                Ok(_) => { 
+                    load_document(); 
+                    *DOCUMENT_REFRESHED.lock().unwrap() = true;
+                },
                 Err(e) => { println!("watch error: {:?}", e); }
             }
         }
@@ -125,7 +135,7 @@ async fn main() {
     let fetch = warp::path("fetch").map(|| warp::reply::json(&*DOCUMENT.lock().unwrap()));
     // GET /<path> => front_path/<path>
     let static_files = warp::fs::dir(FRONT_PATH.clone() + "/");
-
+    // POST /update/<id> => update document with json encoded Text
     let update = warp::path!("update" / String)
         .and(warp::body::json())
         .map(|key: String, text: Text| {
@@ -133,7 +143,26 @@ async fn main() {
             warp::reply()
         });
 
-    let routes = front.or(fetch).or(static_files).or(update);
+    // simple SSE event
+    fn sse_event() -> Result<sse::Event, Infallible> { Ok(sse::Event::default().data("")) }
+
+    // send an SSE event on /file_change every time the document is reloaded
+    let file_change_sse = warp::path("file_change").and(warp::get()).map(|| {
+        let stream = stream! {
+            loop {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                if *DOCUMENT_REFRESHED.lock().unwrap() {
+                    *DOCUMENT_REFRESHED.lock().unwrap() = false;
+                    yield sse_event();
+                }
+            }
+        };
+        warp::sse::reply(warp::sse::keep_alive().stream(stream))
+    });
+
+
+
+    let routes = front.or(fetch).or(static_files).or(update).or(file_change_sse);
 
 
 

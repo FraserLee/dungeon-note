@@ -140,6 +140,12 @@ button {
   <script src="elm.js"></script>
   <script> 
       var app = Elm.Main.init({ node: document.getElementById("elm") }); 
+
+      var fileChangeSource = new EventSource("/file_change");
+
+      fileChangeSource.onmessage = (event) => {
+          alert("File changed");
+      }
   </script>
 </body>
 </html>
