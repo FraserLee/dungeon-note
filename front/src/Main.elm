@@ -122,6 +122,35 @@ update msg model =
                     _ -> (model, Cmd.none)
 
 
+        ------------------------------ mouse move ------------------------------
+
+        (Loaded (doc, volatile), MouseMove { x, y }) ->
+            -- let _ = Debug.log "MouseMove:" (x, y) in
+
+            -- mapAccum : (k -> v -> a -> (v, a)) -> Dict k v -> a -> (Dict k v, a)
+
+            -- if a box is selected and in drag mode, update its position
+            let processBox _ (state, data) = case state of
+
+                    EditState (Drag { iconMouseOffsetX, iconMouseOffsetY }) ->
+                        let x1 = x - volatile.anchorPos.x - iconMouseOffsetX
+                            y1 = y - volatile.anchorPos.y - iconMouseOffsetY
+                        in (state, { data | x = x1, y = y1 })
+                    _ -> (state, data)
+
+                textBoxes = Dict.map processBox doc.textBoxes
+
+                doc1 = { doc | textBoxes = textBoxes }
+                volatiles1 = { volatile | mousePos = { x = x, y = y } }
+
+            -- I'm not entirely sure what could invalidate the anchor position
+            -- (definitely window resize, but possibly some other things) so
+            -- I'll just reload it with each mouse move till performance
+            -- becomes an issue
+
+            in (Loaded (doc1, volatiles1), loadAnchorPos)
+
+
         ------------------------------- selection ------------------------------
 
         (Loaded (doc, volatile), SelectBox selectMode) ->
@@ -132,58 +161,28 @@ update msg model =
                     DragStop id -> id
                     Deselect -> ""
 
-                updateBox key (state, data) = 
-                    if selectMode == Deselect then (ViewState, data)
-                    else if key /= target then (state, data)
+                processBox key (state, data) cs =
+                    if selectMode == Deselect then ((ViewState, data), cs)
+                    else if key /= target then ((state, data), cs)
                     else case (selectMode, state) of
 
-                        (Select _, ViewState) -> (EditState Base, data)
+                        (Select _, ViewState) -> ((EditState Base, data), cs)
 
-                        (DragStart _, EditState Base) -> 
-                            (EditState (Drag { 
+                        (DragStart _, EditState Base) ->
+                            ((EditState (Drag { 
                                 iconMouseOffsetX = volatile.mousePos.x - data.x - volatile.anchorPos.x,
                                 iconMouseOffsetY = volatile.mousePos.y - data.y - volatile.anchorPos.y
-                            } ), data)
+                            } ), data), cs)
 
-                        (DragStop _, EditState (Drag _)) -> (EditState Base, data)
+                        -- when we stop dragging a box, report its new state back down to the server
+                        (DragStop _, EditState (Drag _)) -> ((EditState Base, data), (updateTextBox key data) :: cs)
 
-                        _ -> (state, data)
-
-                textBoxes = Dict.map updateBox doc.textBoxes
-
-            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.none)
-
-
-        ------------------------------ mouse move ------------------------------
-
-        (Loaded (doc, volatile), MouseMove { x, y }) ->
-            -- let _ = Debug.log "MouseMove:" (x, y) in
-
-            -- mapAccum : (k -> v -> a -> (v, a)) -> Dict k v -> a -> (Dict k v, a)
-
-            -- if a box is selected and in drag mode, update its position and report the change
-            let processBox k (state, data) cs = case state of
-
-                    EditState (Drag { iconMouseOffsetX, iconMouseOffsetY }) ->
-                        let x1 = x - volatile.anchorPos.x - iconMouseOffsetX
-                            y1 = y - volatile.anchorPos.y - iconMouseOffsetY
-                            data1 = { data | x = x1, y = y1 }
-                        in ((state, data1), (updateTextBox k data1) :: cs)
-
-                    _ -> ((state, data), cs)
+                        _ -> ((state, data), cs)
 
                 (textBoxes, changes) = mapAccum processBox doc.textBoxes []
 
-                doc1 = { doc | textBoxes = textBoxes }
-                volatiles1 = { volatile | mousePos = { x = x, y = y } }
+            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.batch changes)
 
-
-            -- I'm not entirely sure what could invalidate the anchor position
-            -- (definitely window resize, but possibly some other things) so
-            -- I'll just reload it with each mouse move till performance
-            -- becomes an issue
-
-            in (Loaded (doc1, volatiles1), Cmd.batch (loadAnchorPos :: changes))
 
         -- fall-through (just do nothing, probably tried to act while document loading) 
         _ -> (model, Cmd.none)

@@ -121,6 +121,7 @@ async fn main() {
     let update = warp::path!("update" / String)
         .and(warp::body::json())
         .map(|key: String, text: Text| {
+            println!("updating: {}", key);
             DOCUMENT.lock().unwrap().insert(key, text);
             warp::reply()
         });

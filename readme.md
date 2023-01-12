@@ -23,6 +23,9 @@ more sustainable once the skeleton is in place.
         - [x] offset by position within drag icon
     - [x] drag and drop tri-state mode system
 
+- [x] Have changes get pushed backwards to python
+- [x] Only push back on dragstop, not continually 
+
 - [x] Run python script with a file argument. Grab single large paragraph from there.
 - [x] Watch file / dir, re-grab stuff when it changes (pull behaviour from old project)
 
@@ -30,9 +33,6 @@ more sustainable once the skeleton is in place.
 
 - [x] Force a refresh when the underlying data changes (websockets, probably.
       Maybe https://socket.io/)
-
-- [x] Have changes get pushed backwards to rust
-- [ ] Only push back on dragstop, not continually 
 
 - [ ] Proper Markdown parsing
 
