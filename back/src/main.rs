@@ -13,6 +13,9 @@ use std::time::Duration;
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 
+
+
+
 // -- document data ------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -46,6 +49,10 @@ lazy_static! {
 
 static DOCUMENT_REFRESHED: bool = false;
 
+
+
+
+
 fn load_document() {
     // Todo: properly parse the document and all that.
 
@@ -74,6 +81,9 @@ fn save_document() { // todo: this too
 
     println!("Saved to disk: {}", &*DOC_PATH);
 }
+
+
+
 
 
 // -- main ---------------------------------------------------------------------
@@ -105,6 +115,8 @@ async fn main() {
         }
     });
 
+
+
     // -- routes ---------------------------------------------------------------
 
     // GET / => front_path/index.html
@@ -122,6 +134,8 @@ async fn main() {
         });
 
     let routes = front.or(fetch).or(static_files).or(update);
+
+
 
     // -- run server -----------------------------------------------------------
 

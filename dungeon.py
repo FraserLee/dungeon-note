@@ -24,7 +24,7 @@ debug_mode = 'd' in flags
 pwd = os.path.dirname(os.path.abspath(__file__))
 os.chdir(pwd)
 
-def build(optimize = False):
+def build_elm(optimize = False):
     # create folder
     if not os.path.exists('build'): os.mkdir('build')
 
@@ -36,9 +36,15 @@ def build(optimize = False):
     os.system('elm make src/Main.elm --output=../build/elm.js' + (' --optimize' if optimize else ''))
     os.chdir(pwd)
 
-    # build rust stuff
+
+def build_rust(optimize = False):
     os.chdir('back')
-    os.system('cargo build' + (' --release' if optimize else ''))
+    os.system(f'cargo build {"--release" if optimize else ""}')
+    os.chdir(pwd)
+
+def build_and_run_rust(optimize = False):
+    os.chdir('back')
+    os.system(f'cargo run {"--release" if optimize else ""} -- "{file_path}" "{pwd}/build"')
     os.chdir(pwd)
 
 def clean():
@@ -46,12 +52,11 @@ def clean():
 
 # if we're either in debug more, or there isn't an existing build, build the project.
 if debug_mode or not os.path.exists('build/index.html'):
-    print('Building...')
-    build()
+    clean()
+    build_elm(not debug_mode)
 
-# run the server
-os.chdir('back')
-os.system(f'cargo run -- "{file_path}" "{pwd}/build"')
-os.chdir(pwd)
+# run
+build_and_run_rust(not debug_mode)
+
 
 
