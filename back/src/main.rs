@@ -7,6 +7,12 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use std::path::Path;
+use std::time::Duration;
+
+use notify::RecursiveMode;
+use notify_debouncer_mini::new_debouncer;
+
 // -- document data ------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -38,12 +44,66 @@ lazy_static! {
     };
 }
 
+static DOCUMENT_REFRESHED: bool = false;
+
+fn load_document() {
+    // Todo: properly parse the document and all that.
+
+    let mut document = DOCUMENT.lock().unwrap();
+
+    let text = std::fs::read_to_string(&*DOC_PATH).unwrap();
+
+    document.clear();
+
+    document.insert("foo".to_string(), Text {
+        text,
+        x: -350.0,
+        y: 3.0,
+        width: 700.0,
+    });
+
+    println!("Loaded from disk: {}", &*DOC_PATH);
+}
+
+fn save_document() { // todo: this too
+    let document = DOCUMENT.lock().unwrap();
+
+    let text = document.get("foo").unwrap().text.clone();
+
+    std::fs::write(&*DOC_PATH, text).unwrap();
+
+    println!("Saved to disk: {}", &*DOC_PATH);
+}
+
+
 // -- main ---------------------------------------------------------------------
 
 #[tokio::main]
 async fn main() {
 
-    println!("doc path: {}", &*DOC_PATH);
+    load_document();
+
+    // -- watch file, reload on change -----------------------------------------
+
+    std::thread::spawn(|| {
+
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        let mut debouncer = new_debouncer(Duration::from_millis(500), None, tx).unwrap();
+
+        debouncer.watcher()
+                 .watch(
+                     Path::new(&*DOC_PATH), 
+                     RecursiveMode::Recursive
+                 ).unwrap();
+
+        loop {
+            match rx.recv() {
+                Ok(_) => { load_document(); },
+                Err(e) => { println!("watch error: {:?}", e); }
+            }
+        }
+    });
 
     // -- routes ---------------------------------------------------------------
 
