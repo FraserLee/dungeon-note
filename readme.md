@@ -35,6 +35,12 @@ more sustainable once the skeleton is in place.
       Maybe https://socket.io/)
 
 - [ ] Proper Markdown parsing
+    - [x] Create sample file
+        - [x] Skeleton 
+        - [ ] Add every markdown feature
+    - [ ] Parse it
+        - [x] Simple multiple text boxes
+        - [ ] Rest
 
 - [ ] Save Changes back to file when they're made
 
@@ -53,4 +59,5 @@ more sustainable once the skeleton is in place.
 - [ ] don't select text when dragging
 - [ ] dynamically adjust pivot so stuff is never offscreen to the left
 - [ ] glorious unified system
+- [ ] syntax highlighting for .dn files
 - [ ] find out other things that should be on this list.

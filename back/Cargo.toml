@@ -20,3 +20,5 @@ futures-core = "*"
 async-stream = "*"
 
 lazy_static = "1.4"
+
+regex = "1.7.1"

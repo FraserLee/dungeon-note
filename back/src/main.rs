@@ -1,6 +1,5 @@
 use warp::{sse, Filter};
 
-use serde::{Serialize, Deserialize};
 use async_stream::stream;
 
 use lazy_static::lazy_static;
@@ -15,22 +14,16 @@ use std::convert::Infallible;
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 
+mod parser;
+use parser::{ Document, Element };
 
 
 // -- document data ------------------------------------------------------------
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct Text {
-    text: String,
-    x: f64,
-    y: f64,
-    width: f64,
-}
-
 lazy_static! {
     static ref DOC_PATH: String = std::env::args().nth(1).unwrap();
     static ref FRONT_PATH: String = std::env::args().nth(2).unwrap();
-    static ref DOCUMENT: Arc<Mutex<HashMap<String, Text>>> = Arc::new(Mutex::new(HashMap::new()));
+    static ref DOCUMENT: Arc<Mutex<Document>> = Arc::new(Mutex::new(HashMap::new()));
 
     // quick and dirty cross-thread signalling, by polling a bool to see if
     // we need to refresh stuff every second. Go back and try to figure out 
@@ -45,20 +38,13 @@ lazy_static! {
 
 
 fn load_document() {
-    // Todo: properly parse the document and all that.
-
     let mut document = DOCUMENT.lock().unwrap();
 
     let text = std::fs::read_to_string(&*DOC_PATH).unwrap();
 
-    document.clear();
+    let parsed = parser::parse(&text);
 
-    document.insert("foo".to_string(), Text {
-        text,
-        x: -350.0,
-        y: 3.0,
-        width: 700.0,
-    });
+    *document = parsed;
 
     println!("Loaded from disk: {}", &*DOC_PATH);
 }
@@ -120,7 +106,7 @@ async fn main() {
     // POST /update/<id> => update document with json encoded Text
     let update = warp::path!("update" / String)
         .and(warp::body::json())
-        .map(|key: String, text: Text| {
+        .map(|key: String, text: Element| {
             println!("updating: {}", key);
             DOCUMENT.lock().unwrap().insert(key, text);
             warp::reply()

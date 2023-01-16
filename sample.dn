@@ -1,0 +1,55 @@
+!!!!Text!x:-350.0!y:30.0!width:700.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+## Advanced control flow with continuations
+
+Lets say we have a function that takes a binary tree, and returns the first
+element to satisfy a predicate:
+
+```ocaml
+type 'a tree = Empty | Node of 'a tree * 'a * 'a tree
+
+let rec find (p : 'a -> bool) (t : 'a tree) : 'a option = match t with
+    | Empty -> None
+    | Node (l, x, r) ->
+        if p x then Some x
+        else match find p l with
+            | Some x -> Some x
+            | None -> find p r
+```
+
+We could rewrite this in the most obvious continuation-passing style:
+
+```ocaml
+let rec find1 (p : 'a -> bool) (t : 'a tree) (return : 'a option -> 'r) : 'r = match t with
+  | Empty -> return None
+  | Node (l, x, r) ->
+    if p x then return (Some x) else
+    find1 p l (fun result -> match result with
+                             | None -> find1 p r return
+                             | Some x -> return (Some x))
+```
+
+However we can greatly optimize this by noting that the original function can
+essentially return in one of two ways, either by failing (returning `None`) or
+by succeeding (returning `Some x`). We can represent this in the continuation
+style by passing two continuations, one for the success case and the other for
+the failure case:
+
+```ocaml
+let rec find_tr (p : 'a -> bool) (t : 'a tree)
+                (fail : unit -> 'r) (return : 'a -> 'r) : 'r =
+    match t with
+    | Empty -> fail ()
+    | Node (l, x, r) ->
+        if p x then return x else
+        (* call find_tr on the left subtree, with a fail continuation that
+           calls find_tr on the right subtree *)
+        let find_r = fun () -> find_tr p r fail return in
+        find_tr p l find_r return
+```
+
+!!!!Text!x:370.0!y:150.0!width:300.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+In addition to looking far nicer, this last version actually is more efficient.
+At the point it finds something, the original `return` is immediately called,
+without having to jump back through the stack frames of the inner matches, nor
+examine the results of the previous recursive calls.
