@@ -27,27 +27,32 @@ port fileChange : (String -> msg) -> Sub msg
 
 ---------------------------------- model types ---------------------------------
 
-type alias TextBox = (TextBoxState, TextBoxData)
+type Model = Loading 
+           | Loaded (PersistentState, VolatileState)
+           | Failed Http.Error
+
+type alias VolatileState = { anchorPos : { x : Float, y : Float }
+                           , mousePos : { x : Float, y : Float } }
+
+type alias PersistentState = { elements : Dict ElementId Element }
+
+type alias ElementId = String
+
+type Element = TextBox (TextBoxState, TextBoxData) -- | Line (LineState, LineData) | ...
+
 type TextBoxEditState = Base | Drag { iconMouseOffsetX : Float, iconMouseOffsetY : Float }
+
 type TextBoxState = ViewState | EditState TextBoxEditState
-type alias TextBoxId = String
+
 type alias TextBoxData = { text : String
                          , width : Float
                          , x : Float
                          , y : Float }
 
-type alias VolatileState = { anchorPos : { x : Float, y : Float }
-                           , mousePos : { x : Float, y : Float } }
-
-type alias PersistentState = { textBoxes : Dict TextBoxId TextBox }
-
-type Model = Loading 
-           | Loaded (PersistentState, VolatileState)
-           | Failed Http.Error
 
 --------------------------------- message types --------------------------------
 
-type SelectMsg = Deselect | Select TextBoxId | DragStart TextBoxId | DragStop TextBoxId
+type SelectMsg = Deselect | Select ElementId | DragStart ElementId | DragStop ElementId
 
 type alias MouseMoveMsg = { x : Float, y : Float }
 
@@ -70,9 +75,12 @@ fetchData = Http.get { url = "/fetch", expect = Http.expectJson LoadDocument dec
 -- not completely sure how to parse the keys back into ints, so I'll leave it for now
 
 decodeDocument : Decoder PersistentState
-decodeDocument = Decode.dict decodeTextBox |> Decode.map PersistentState
+decodeDocument = Decode.dict decodeElement |> Decode.map PersistentState
 
-decodeTextBox : Decoder TextBox
+decodeElement : Decoder Element
+decodeElement = Decode.map TextBox decodeTextBox
+
+decodeTextBox : Decoder (TextBoxState, TextBoxData)
 decodeTextBox = Decode.map2 Tuple.pair (Decode.succeed ViewState) decodeTextBoxData
 
 decodeTextBoxData : Decoder TextBoxData
@@ -130,17 +138,17 @@ update msg model =
             -- mapAccum : (k -> v -> a -> (v, a)) -> Dict k v -> a -> (Dict k v, a)
 
             -- if a box is selected and in drag mode, update its position
-            let processBox _ (state, data) = case state of
+            let processBox _ (TextBox (state, data)) = case state of
 
                     EditState (Drag { iconMouseOffsetX, iconMouseOffsetY }) ->
                         let x1 = x - volatile.anchorPos.x - iconMouseOffsetX
                             y1 = y - volatile.anchorPos.y - iconMouseOffsetY
-                        in (state, { data | x = x1, y = y1 })
-                    _ -> (state, data)
+                        in TextBox (state, { data | x = x1, y = y1 })
+                    _ -> TextBox (state, data)
 
-                textBoxes = Dict.map processBox doc.textBoxes
+                elements = Dict.map processBox doc.elements
 
-                doc1 = { doc | textBoxes = textBoxes }
+                doc1 = { doc | elements = elements }
                 volatiles1 = { volatile | mousePos = { x = x, y = y } }
 
             -- I'm not entirely sure what could invalidate the anchor position
@@ -161,27 +169,27 @@ update msg model =
                     DragStop id -> id
                     Deselect -> ""
 
-                processBox key (state, data) cs =
-                    if selectMode == Deselect then ((ViewState, data), cs)
-                    else if key /= target then ((state, data), cs)
+                processBox key (TextBox (state, data)) cs =
+                    if selectMode == Deselect then (TextBox (ViewState, data), cs)
+                    else if key /= target then (TextBox (state, data), cs)
                     else case (selectMode, state) of
 
-                        (Select _, ViewState) -> ((EditState Base, data), cs)
+                        (Select _, ViewState) -> (TextBox (EditState Base, data), cs)
 
                         (DragStart _, EditState Base) ->
-                            ((EditState (Drag { 
+                            (TextBox (EditState (Drag { 
                                 iconMouseOffsetX = volatile.mousePos.x - data.x - volatile.anchorPos.x,
                                 iconMouseOffsetY = volatile.mousePos.y - data.y - volatile.anchorPos.y
                             } ), data), cs)
 
                         -- when we stop dragging a box, report its new state back down to the server
-                        (DragStop _, EditState (Drag _)) -> ((EditState Base, data), (updateTextBox key data) :: cs)
+                        (DragStop _, EditState (Drag _)) -> (TextBox (EditState Base, data), (updateTextBox key data) :: cs)
 
-                        _ -> ((state, data), cs)
+                        _ -> (TextBox (state, data), cs)
 
-                (textBoxes, changes) = mapAccum processBox doc.textBoxes []
+                (elements, changes) = mapAccum processBox doc.elements []
 
-            in (Loaded ({ doc | textBoxes = textBoxes }, volatile), Cmd.batch changes)
+            in (Loaded ({ doc | elements = elements }, volatile), Cmd.batch changes)
 
 
         -- fall-through (just do nothing, probably tried to act while document loading) 
@@ -201,13 +209,16 @@ view model =
                 [ h2 [ css [ Tw.text_center, Tw.opacity_25 ] ] [ text "loading..." ] ]
 
         Loaded (doc, _) ->
-              let textBoxesHtml = List.map viewTextBox (Dict.toList doc.textBoxes)
+              let textBoxesHtml = List.map viewElement (Dict.toList doc.elements)
               in div [ css [ Tw.top_0, Tw.w_full, Tw.h_screen ] ]
                      [ div [ id "anchor-div", css [ Tw.top_0, Tw.absolute, left (vw 50) ] ]
                          textBoxesHtml
                      ]
 
-viewTextBox : (TextBoxId, TextBox) -> Html Msg
+viewElement : (ElementId, Element) -> Html Msg
+viewElement (k, TextBox e) = viewTextBox (k, e)
+
+viewTextBox : (ElementId, (TextBoxState, TextBoxData)) -> Html Msg
 viewTextBox (k, (state, data)) =
 
     let dragIcon = div [ css [ Tw.text_white, Tw.cursor_move
@@ -249,7 +260,7 @@ viewTextBox (k, (state, data)) =
 
 -- note: I'm just sending over an entire textbox at the moment, but I can probably
 -- be a lot more surgical about it if need comes
-updateTextBox : TextBoxId -> TextBoxData -> Cmd Msg
+updateTextBox : ElementId -> TextBoxData -> Cmd Msg
 updateTextBox id data = 
     let _ = Debug.log "Push update to server:" (id, data) in
     let url = "/update/" ++ id
