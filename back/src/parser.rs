@@ -21,18 +21,23 @@ impl Document {
 }
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
-pub struct Element {
-    text: String,
-    x: f64,
-    y: f64,
-    width: f64,
+pub enum Element {
+    TextBox { 
+        text: String,
+        x: f64,
+        y: f64,
+        width: f64,
+    },
+    Rect {
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        z: f64,
+    },
 }
 
 // -----------------------------------------------------------------------------
-
-
-
-
 
 #[derive(Hash, Debug)]
 struct ElementPrecursor {
@@ -83,7 +88,7 @@ pub fn parse(text: &str) -> Document {
         precursor.hash(&mut hasher);
         let hash = hasher.finish();
 
-        let element = Element {
+        let element = Element::TextBox {
             text,
             x: precursor.fields[1].parse().unwrap(),
             y: precursor.fields[2].parse().unwrap(),

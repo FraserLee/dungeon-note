@@ -14,7 +14,7 @@ import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (css, id)
 import Html.Styled.Events exposing (onClick, onMouseDown, onMouseUp)
 
-import Json.Decode as Decode exposing (Decoder, field, string)
+import Json.Decode as Decode exposing (Decoder, field)
 
 import Task
 
@@ -114,13 +114,13 @@ update msg model =
             -- mapAccum : (k -> v -> a -> (v, a)) -> Dict k v -> a -> (Dict k v, a)
 
             -- if a box is selected and in drag mode, update its position
-            let processBox _ (ESText state, data) = case state of
-
-                    EditState (Drag { iconMouseOffsetX, iconMouseOffsetY }) ->
+            let processBox _ (s, d) = case (s, d) of
+                    (ESText (EditState (Drag { iconMouseOffsetX, iconMouseOffsetY })), TextBox data) ->
                         let x1 = x - volatile.anchorPos.x - iconMouseOffsetX
                             y1 = y - volatile.anchorPos.y - iconMouseOffsetY
-                        in (ESText state, { data | x = x1, y = y1 })
-                    _ -> (ESText state, data)
+                        in (s, TextBox { data | x = x1, y = y1 })
+                    _ -> (s, d)
+
 
                 (vElements, dElements) = unzip <| Dict.map processBox <| zip volatile.elements doc.elements
 
@@ -145,23 +145,26 @@ update msg model =
                     DragStop id -> id
                     Deselect -> ""
 
-                processBox key (ESText state, data) cs =
-                    if selectMode == Deselect then ((ESText ViewState, data), cs)
-                    else if key /= target then ((ESText state, data), cs)
-                    else case (selectMode, state) of
+                -- processBox key (ESText state, data) cs =
+                processBox key (s, d) cs = case (s, d) of 
+                    (ESText state, TextBox data) ->
+                        if selectMode == Deselect then ((ESText ViewState, d), cs)
+                        else if key /= target then ((s, d), cs)
+                        else case (selectMode, state) of
 
-                        (Select _, ViewState) -> ((ESText (EditState Base), data), cs)
+                            (Select _, ViewState) -> ((ESText (EditState Base), d), cs)
 
-                        (DragStart _, EditState Base) ->
-                            ((ESText (EditState (Drag { 
-                                iconMouseOffsetX = volatile.mousePos.x - data.x - volatile.anchorPos.x,
-                                iconMouseOffsetY = volatile.mousePos.y - data.y - volatile.anchorPos.y
-                            } )), data), cs)
+                            (DragStart _, EditState Base) ->
+                                ((ESText (EditState (Drag { 
+                                    iconMouseOffsetX = volatile.mousePos.x - data.x - volatile.anchorPos.x,
+                                    iconMouseOffsetY = volatile.mousePos.y - data.y - volatile.anchorPos.y
+                                } )), d), cs)
 
-                        -- when we stop dragging a box, report its new state back down to the server
-                        (DragStop _, EditState (Drag _)) -> ((ESText (EditState Base), data), (updateElement key data) :: cs)
+                            -- when we stop dragging a box, report its new state back down to the server
+                            (DragStop _, EditState (Drag _)) -> ((ESText (EditState Base), d), (updateElement key d) :: cs)
 
-                        _ -> ((ESText state, data), cs)
+                            _ -> ((s, d), cs)
+                    _ -> ((s, d), cs)
 
                 (elements, changes) = mapAccum processBox (zip volatile.elements doc.elements) []
                 (vElements, dElements) = unzip elements
@@ -194,10 +197,11 @@ view model =
 
 viewElement : (ElementId, (ElementState, Element)) -> Html Msg
 viewElement (k, (s, e)) = 
-    case s of -- when adding other element types, change to `case (s, e) of`
-        ESText st -> viewTextBox (k, (st, e))
+    case (s, e) of
+        (ESText state, TextBox data) -> viewTextBox (k, (state, data))
+        _ -> text "todo: handle other element types"
 
-viewTextBox : (ElementId, (TextBoxState, Element)) -> Html Msg
+viewTextBox : (ElementId, (TextBoxState, { x : Float, y : Float, width : Float, text : String })) -> Html Msg
 viewTextBox (k, (state, data)) =
 
     let dragIcon = div [ css [ Tw.text_white, Tw.cursor_move
