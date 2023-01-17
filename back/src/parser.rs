@@ -22,19 +22,31 @@ impl Document {
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
 pub enum Element {
-    TextBox { 
-        text: String,
-        x: f64,
-        y: f64,
-        width: f64,
-    },
-    Rect {
-        x: f64,
-        y: f64,
-        width: f64,
-        height: f64,
-        z: f64,
-    },
+    TextBox { x: f64, y: f64, width: f64, data: Vec<TextBlock> },
+    Rect    { x: f64, y: f64, width: f64, height: f64, z: f64, color: String, },
+    Line    { x1: f64, y1: f64, x2: f64, y2: f64, },
+}
+
+#[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
+pub enum TextBlock {
+    Paragraph { chunks: Vec<TextChunk> },
+    Header { level: u8, chunks: Vec<TextChunk> },
+    CodeBlock { code: String },
+    VerticalSpace,
+}
+
+#[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
+pub struct TextChunk {
+    pub text: String,
+    pub style: TextStyle,
+}
+
+#[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
+pub struct TextStyle {
+    pub bold: bool,
+    pub italic: bool,
+    pub underline: bool,
+    pub strikethrough: bool,
 }
 
 // -----------------------------------------------------------------------------
@@ -53,6 +65,9 @@ pub fn parse(text: &str) -> Document {
     // a element header will look like this:
     // !!!!Text!x:370.0!y:150.0!width:300.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     let re = Regex::new(r"^!!(?:!+)(Text)!x:(-?\d+(?:\.\d)?)!y:(-?\d+(?:\.\d)?)!width:(-?\d+(?:\.\d)?)!!!").unwrap();
+
+    // TODO: grab parameters in any order
+    // TODO: when missing, parse parameters to a default value
 
     // first pass: scan through and mark out the boundaries of each element, and save all metadata info
     let mut element_precursors: Vec<ElementPrecursor> = Vec::new();
@@ -89,15 +104,20 @@ pub fn parse(text: &str) -> Document {
         let hash = hasher.finish();
 
         let element = Element::TextBox {
-            text,
             x: precursor.fields[1].parse().unwrap(),
             y: precursor.fields[2].parse().unwrap(),
             width: precursor.fields[3].parse().unwrap(),
+            data: parse_text_block(&text),
         };
 
         document.elements.insert(hash.to_string(), element);
     }
 
     document
+}
+
+fn parse_text_block(text: &str) -> Vec<TextBlock> {
+    // TODO: ...
+    unimplemented!()
 }
 

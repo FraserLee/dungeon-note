@@ -13,7 +13,7 @@ use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 
 mod parser;
-use parser::{ Document, Element };
+use parser::{ Document, Element, TextBlock, TextChunk, TextStyle };
 
 // -- document data ------------------------------------------------------------
 
@@ -70,8 +70,8 @@ async fn main() {
         let mut target = std::fs::File::create(env!("CARGO_MANIFEST_DIR").replace("back", "front/src/Bindings.elm")).unwrap();
 
         elm_rs::export!("Bindings", &mut target, {
-            encoders: [Document, Element],
-            decoders: [Document, Element],
+            encoders: [Document, Element, TextBlock, TextChunk, TextStyle],
+            decoders: [Document, Element, TextBlock, TextChunk, TextStyle],
         }).unwrap();
 
         return;
