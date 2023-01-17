@@ -67,7 +67,7 @@ async fn main() {
     // if the first argument is "--rebuild_shared_types", then just build shared types and exit
     if std::env::args().nth(1) == Some("--rebuild_shared_types".to_string()) {
 
-        let mut target = std::fs::File::create(env!("CARGO_MANIFEST_DIR").replace("back", "front/src/SharedTypes.elm")).unwrap();
+        let mut target = std::fs::File::create(env!("CARGO_MANIFEST_DIR").replace("back", "front/src/Bindings.elm")).unwrap();
 
         elm_rs::export!("Bindings", &mut target, {
             encoders: [Document, Element],

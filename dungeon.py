@@ -56,7 +56,7 @@ def clean():
     os.system('rm -rf build')
 
 # if we're either in debug mode, or there isn't an existing shared-types file, build it.
-if debug_mode or not os.path.exists('front/src/SharedTypes.elm'):
+if debug_mode or not os.path.exists('front/src/Bindings.elm'):
     build_shared()
 
 # if we're either in debug more, or there isn't an existing build, build the front-end
