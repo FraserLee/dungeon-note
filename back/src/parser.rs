@@ -3,19 +3,36 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 use serde::{Serialize, Deserialize};
+use elm_rs::{Elm, ElmEncode, ElmDecode};
 
 use regex::Regex;
 
 
-pub type Document = HashMap<String, Element>;
+// --------------------------- types shared with elm ---------------------------
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
+pub struct Document {
+    pub elements: HashMap<String, Element>,
+}
+impl Document {
+    pub fn new() -> Self {
+        Self { elements: HashMap::new(), }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
 pub struct Element {
     text: String,
     x: f64,
     y: f64,
     width: f64,
 }
+
+// -----------------------------------------------------------------------------
+
+
+
+
 
 #[derive(Hash, Debug)]
 struct ElementPrecursor {
@@ -55,7 +72,11 @@ pub fn parse(text: &str) -> Document {
     // now we have all the elements, we can parse the contents of each and add them to the document
     for precursor in element_precursors {
 
-        let text = text.lines().skip(precursor.startline + 1).take(precursor.endline - precursor.startline).collect::<Vec<&str>>().join("\n");
+        let text = text.lines()
+            .skip(precursor.startline + 1)
+            .take(precursor.endline - precursor.startline)
+            .collect::<Vec<&str>>()
+            .join("\n");
 
         // use the hash of the precursor as the key
         let mut hasher = DefaultHasher::new();
@@ -69,7 +90,7 @@ pub fn parse(text: &str) -> Document {
             width: precursor.fields[3].parse().unwrap(),
         };
 
-        document.insert(hash.to_string(), element);
+        document.elements.insert(hash.to_string(), element);
     }
 
     document

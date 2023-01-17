@@ -4,9 +4,7 @@ use async_stream::stream;
 
 use lazy_static::lazy_static;
 
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-
 use std::path::Path;
 use std::time::Duration;
 use std::convert::Infallible;
@@ -17,21 +15,12 @@ use notify_debouncer_mini::new_debouncer;
 mod parser;
 use parser::{ Document, Element };
 
-use elm_rs::{Elm, ElmEncode, ElmDecode};
-
-// -- shared types -------------------------------------------------------------
-
-#[derive(Debug, Elm, ElmEncode, ElmDecode)]
-struct ElmTest {
-    text: String,
-}
-
 // -- document data ------------------------------------------------------------
 
 lazy_static! {
     static ref DOC_PATH: String = std::env::args().nth(1).unwrap_or("".to_string());
     static ref FRONT_PATH: String = std::env::args().nth(2).unwrap_or("".to_string());
-    static ref DOCUMENT: Arc<Mutex<Document>> = Arc::new(Mutex::new(HashMap::new()));
+    static ref DOCUMENT: Arc<Mutex<Document>> = Arc::new(Mutex::new(Document::new()));
 
     // quick and dirty cross-thread signalling, by polling a bool to see if
     // we need to refresh stuff every second. Go back and try to figure out 
@@ -81,8 +70,8 @@ async fn main() {
         let mut target = std::fs::File::create(env!("CARGO_MANIFEST_DIR").replace("back", "front/src/SharedTypes.elm")).unwrap();
 
         elm_rs::export!("Bindings", &mut target, {
-            encoders: [ElmTest],
-            decoders: [ElmTest],
+            encoders: [Document, Element],
+            decoders: [Document, Element],
         }).unwrap();
 
         return;
@@ -131,7 +120,7 @@ async fn main() {
         .and(warp::body::json())
         .map(|key: String, text: Element| {
             println!("updating: {}", key);
-            DOCUMENT.lock().unwrap().insert(key, text);
+            DOCUMENT.lock().unwrap().elements.insert(key, text);
             warp::reply()
         });
 
