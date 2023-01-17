@@ -1,53 +1,97 @@
 {
-  "title": "document",
-  "type": "object",
-  "additionalProperties" : {
-    "title": "Element",
-    "oneOf": [
-      {
-        "type": "object",
-        "title": "TextBlock",
-        "properties": {
-          "x": {
-            "type": "number",
-            "title": "x"
-          },
-          "y": {
-            "type": "number",
-            "title": "y"
-          },
-          "width": {
-            "type": "number",
-            "title": "width"
-          },
-          "contents": {
-            "type": "array",
-            "title": "contents",
-            "items": {
-              "oneOf" : [
-                {
-                  "type": "string",
-                  "title": "text"
-                },
-                {
-                  "type": "object",
-                  "title": "heading",
-                  "properties": {
-                    "text": {
-                      "type": "string",
-                      "title": "text"
-                    },
-                    "level": {
-                      "type": "integer",
-                      "title": "level"
-                    }
-                  }
-                }
-              ]
-            }
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Definitions",
+  "$id": "http://foo.bar/definitions.json",
+  "description": "Schema for common types",
+  "definitions": {
+
+
+
+
+
+    "document": {
+      "$id": "#document",
+      "type": "array",
+      "items": {
+        "$ref": "http://foo.bar/definitions.json#Element"
+      }
+    },
+
+
+
+
+
+    "Element": {
+      "$id": "#Element",
+      "type": "object",
+      "properties": {
+        "key" : { "type": "string" },
+        "value" : {
+          "oneOf": [
+            { "$ref": "http://foo.bar/definitions.json#Textbox" }
+          ]
+        }
+      },
+      "required": [ "key", "value" ]
+    },
+
+
+
+
+    "Textbox": {
+      "$id": "#Textbox",
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "title": "x"
+        },
+        "y": {
+          "type": "number",
+          "title": "y"
+        },
+        "width": {
+          "type": "number",
+          "title": "width"
+        },
+        "contents": {
+          "type": "array",
+          "title": "contents",
+          "items": {
+            "$ref": "http://foo.bar/definitions.json#TBContent"
           }
         }
-      }
-    ]
+      },
+      "required": [ "x", "y", "width", "contents" ]
+    },
+
+
+
+    "TBContent": {
+      "$id": "#TBContent",
+      "oneOf": [
+        { "$ref": "http://foo.bar/definitions.json#TBCText" },
+        { "$ref": "http://foo.bar/definitions.json#TBCHeader" }
+      ]
+    },
+    "TBCText": {
+      "$id": "#TBCText",
+      "type": "string"
+    },
+    "TBCHeader": {
+      "$id": "#TBCHeader",
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "title": "text"
+        },
+        "level": {
+          "type": "integer",
+          "title": "level"
+        }
+      },
+      "required": [ "text", "level" ]
+    }
   }
 }

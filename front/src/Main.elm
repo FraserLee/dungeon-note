@@ -1,10 +1,10 @@
 port module Main exposing (..)
 
-import DecodeDocument exposing (..)
+import Document exposing (..)
 
 import Browser
 import Browser.Events exposing (onMouseMove, onKeyDown)
-import Browser.Dom exposing (..)
+import Browser.Dom exposing (getElement)
 
 import Css exposing (..)
 import Tailwind.Utilities as Tw
@@ -36,22 +36,6 @@ type Model = Loading
 type alias VolatileState = { anchorPos : { x : Float, y : Float }
                            , mousePos : { x : Float, y : Float } }
 
-type alias PersistentState = { elements : Dict ElementId Element }
-
-type alias ElementId = String
-
-type Element = TextBox (TextBoxState, TextBoxData) -- | Line (LineState, LineData) | ...
-
-type TextBoxEditState = Base | Drag { iconMouseOffsetX : Float, iconMouseOffsetY : Float }
-
-type TextBoxState = ViewState | EditState TextBoxEditState
-
-type alias TextBoxData = { x : Float, y : Float, width : Float, textBoxElements : List TextBoxElement }
-
-type TextBoxElement = Text String
-                    | Heading (Int, String)
-
-
 --------------------------------- message types --------------------------------
 
 type SelectMsg = Deselect | Select ElementId | DragStart ElementId | DragStop ElementId
@@ -71,28 +55,7 @@ init _ = (Loading, fetchData)
 ------------------------------------- load -------------------------------------
 
 fetchData : Cmd Msg
-fetchData = Http.get { url = "/fetch", expect = Http.expectJson LoadDocument decodeDocument }
-
--- { "0" : { ... first paragraph data ... }, "1" : { ... second paragraph data ... } }
--- not completely sure how to parse the keys back into ints, so I'll leave it for now
-
-decodeDocument : Decoder PersistentState
-decodeDocument = Decode.dict decodeElement |> Decode.map PersistentState
-
-decodeElement : Decoder Element
-decodeElement = Decode.map TextBox decodeTextBox
-
-decodeTextBox : Decoder (TextBoxState, TextBoxData)
-decodeTextBox = Decode.map2 Tuple.pair (Decode.succeed ViewState) decodeTextBoxData
-
-decodeTextBoxData : Decoder TextBoxData
-decodeTextBoxData =
-    Decode.map4 TextBoxData
-        (field "text" string)
-        (field "width" Decode.float)
-        (field "x" Decode.float)
-        (field "y" Decode.float)
-
+fetchData = Http.get { url = "/fetch", expect = Http.expectJson LoadDocument decodePersistentState }
 
 loadAnchorPos : Cmd Msg
 loadAnchorPos = getElement "anchor-div" 
@@ -251,11 +214,28 @@ viewTextBox (k, (state, data)) =
                       ViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (hex "00000000"), Tw.p_4 ]
                       EditState _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.p_4 ]
 
-           contents = (text data.text) :: (case state of
-                                            ViewState -> []
-                                            EditState _ -> [ dragWidget ])
+           contents = (viewTBElements data.textBoxElements) 
+                       ++ (case state of ViewState -> []
+                                         EditState _ -> [ dragWidget ])
 
     in div [ style, onClick (SelectBox (Select k)) ] contents
+
+viewTBElements : List TextBoxElement -> List (Html Msg)
+viewTBElements elements = 
+    List.map (\e ->
+        case e of
+            Text s -> p [] [ text s ]
+            Heading (level, s) -> case level of
+                1 -> h1 [] [ text s ]
+                2 -> h2 [] [ text s ]
+                3 -> h3 [] [ text s ]
+                4 -> h4 [] [ text s ]
+                5 -> h5 [] [ text s ]
+                6 -> h6 [] [ text s ]
+                _ -> p [] [ text s ]
+        ) elements
+
+
 
 
 ------------------------------------ effects -----------------------------------
