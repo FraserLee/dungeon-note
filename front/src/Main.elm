@@ -242,24 +242,14 @@ viewTextBox (k, (state, data)) =
 -- note: I'm just sending over an entire textbox at the moment, but I can probably
 -- be a lot more surgical about it if need comes
 updateElement : ElementId -> Element -> Cmd Msg
-updateElement id data = Cmd.none
---     let _ = Debug.log "Push update to server:" (id, data) in
---     let url = "/update/" ++ id
---         body = encodeTextBox data in
---     Http.post { body = Http.jsonBody body
---               , expect = Http.expectWhatever Posted
---               , url = url
---               }
---
--- encodeTextBox : TextBoxData -> Encode.Value
--- encodeTextBox { text, width, x, y } =
---     Encode.object
---         [ ("text", Encode.string text)
---         , ("width", Encode.float width)
---         , ("x", Encode.float x)
---         , ("y", Encode.float y)
---         ]
-
+updateElement id data =
+    let _ = Debug.log "Push update to server:" (id, data) in
+    let url = "/update/" ++ id
+        body = elementEncoder data in
+    Http.post { body = Http.jsonBody body
+              , expect = Http.expectWhatever Posted
+              , url = url
+              }
 
 
 subscriptions : Model -> Sub Msg
