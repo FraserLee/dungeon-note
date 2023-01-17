@@ -1,5 +1,7 @@
 port module Main exposing (..)
 
+import DecodeDocument exposing (..)
+
 import Browser
 import Browser.Events exposing (onMouseMove, onKeyDown)
 import Browser.Dom exposing (..)
@@ -44,10 +46,10 @@ type TextBoxEditState = Base | Drag { iconMouseOffsetX : Float, iconMouseOffsetY
 
 type TextBoxState = ViewState | EditState TextBoxEditState
 
-type alias TextBoxData = { text : String
-                         , width : Float
-                         , x : Float
-                         , y : Float }
+type alias TextBoxData = { x : Float, y : Float, width : Float, textBoxElements : List TextBoxElement }
+
+type TextBoxElement = Text String
+                    | Heading (Int, String)
 
 
 --------------------------------- message types --------------------------------
