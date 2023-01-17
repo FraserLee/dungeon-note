@@ -1,5 +1,4 @@
-Current plan - quickly scaffold this idea out using python, swap to something
-more sustainable once the skeleton is in place.
+# Todo: write readme
 
 - [x] Python <-> Locally hosted webpage
 - [x] Send forwards json full of dummy textboxes
@@ -34,13 +33,19 @@ more sustainable once the skeleton is in place.
 - [x] Force a refresh when the underlying data changes (websockets, probably.
       Maybe https://socket.io/)
 
+- [x] Genericize from "TextBox" to element sum-type
+- [x] Unified Types between frontend and backend
+- [x] JSON serialization and deserialization for unified types
 - [ ] Proper Markdown parsing
     - [x] Create sample file
         - [x] Skeleton 
         - [ ] Add every markdown feature
     - [ ] Parse it
         - [x] Simple multiple text boxes
+        - [x] Come up with format
         - [ ] Rest
+
+- [ ] Polish Readme
 
 - [ ] Save Changes back to file when they're made
 
@@ -50,14 +55,28 @@ more sustainable once the skeleton is in place.
         - while single-pixel wheel around the point of the thing, mouseover
     - [ ] deselect when clicking background
 
+- [ ] Rectangles
 
-- [ ] Re-add menu bar
-- [ ] Genericize from "TextBox" to element sum-type
-- [ ] Lines
-- [ ] Math
-- [ ] Write tests
+- [ ] Swap last space for &nbsp; before each newline.
+        - "p, h1, h2, h3, h4, h5, h6, li, dt, dd"
+- [ ] <br> breaks
+- [ ] ~~strikethrough~~
 - [ ] don't select text when dragging
+- [ ] Re-add menu bar
+- [ ] Lines
+- [ ] Math (both asciimath and latex would be ideal)
+    - generate html on the backend, don't have anything like MathJax
+      running on the site
+- [ ] Images
+- [ ] Memoize markdown parsing
+- [ ] Highlight CodeBlocks
+- [ ] Execute CodeBlocks
+- [ ] Z-order on arbitrary elements with forwards / backwards buttons
+- [ ] Write tests
 - [ ] dynamically adjust pivot so stuff is never offscreen to the left
 - [ ] glorious unified system
+    - [ ] integrate index.md functionality into a file browser style thing
+    - [ ] website version with in-textbox editors and cloud sync
+- [ ] make youtube video about how to use this, write tutorials
 - [ ] syntax highlighting for .dn files
 - [ ] find out other things that should be on this list.
