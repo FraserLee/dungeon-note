@@ -17,12 +17,20 @@ use notify_debouncer_mini::new_debouncer;
 mod parser;
 use parser::{ Document, Element };
 
+use elm_rs::{Elm, ElmEncode, ElmDecode};
+
+// -- shared types -------------------------------------------------------------
+
+#[derive(Debug, Elm, ElmEncode, ElmDecode)]
+struct ElmTest {
+    text: String,
+}
 
 // -- document data ------------------------------------------------------------
 
 lazy_static! {
-    static ref DOC_PATH: String = std::env::args().nth(1).unwrap();
-    static ref FRONT_PATH: String = std::env::args().nth(2).unwrap();
+    static ref DOC_PATH: String = std::env::args().nth(1).unwrap_or("".to_string());
+    static ref FRONT_PATH: String = std::env::args().nth(2).unwrap_or("".to_string());
     static ref DOCUMENT: Arc<Mutex<Document>> = Arc::new(Mutex::new(HashMap::new()));
 
     // quick and dirty cross-thread signalling, by polling a bool to see if
@@ -65,10 +73,25 @@ fn load_document() {
 
 #[tokio::main]
 async fn main() {
+    // -- build shared types ---------------------------------------------------
 
-    load_document();
+    // if the first argument is "--rebuild_shared_types", then just build shared types and exit
+    if std::env::args().nth(1) == Some("--rebuild_shared_types".to_string()) {
+
+        let mut target = std::fs::File::create(env!("CARGO_MANIFEST_DIR").replace("back", "front/src/SharedTypes.elm")).unwrap();
+
+        elm_rs::export!("Bindings", &mut target, {
+            encoders: [ElmTest],
+            decoders: [ElmTest],
+        }).unwrap();
+
+        return;
+    }
+
 
     // -- watch file, reload on change -----------------------------------------
+
+    load_document();
 
     std::thread::spawn(|| {
 

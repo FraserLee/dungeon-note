@@ -42,6 +42,11 @@ def build_rust(optimize = False):
     os.system(f'cargo build {"--release" if optimize else ""}')
     os.chdir(pwd)
 
+def build_shared():
+    os.chdir('back')
+    os.system('cargo run -- --rebuild_shared_types')
+    os.chdir(pwd)
+
 def build_and_run_rust(optimize = False):
     os.chdir('back')
     os.system(f'cargo run {"--release" if optimize else ""} -- "{file_path}" "{pwd}/build"')
@@ -50,10 +55,15 @@ def build_and_run_rust(optimize = False):
 def clean():
     os.system('rm -rf build')
 
-# if we're either in debug more, or there isn't an existing build, build the project.
+# if we're either in debug mode, or there isn't an existing shared-types file, build it.
+if debug_mode or not os.path.exists('front/src/SharedTypes.elm'):
+    build_shared()
+
+# if we're either in debug more, or there isn't an existing build, build the front-end
 if debug_mode or not os.path.exists('build/index.html'):
     clean()
     build_elm(not debug_mode)
+
 
 # run
 build_and_run_rust(not debug_mode)
