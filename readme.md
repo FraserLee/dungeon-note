@@ -44,9 +44,9 @@
         - [x] Simple multiple text boxes
         - [x] Come up with format
         - [x] Block-scale parsing
-        - [ ] Fix Newlines to adhere to consistent convention
-        - [ ] Fix Paragraph End
-        - [ ] Line-scale parsing
+        - [x] Fix Newlines to adhere to consistent convention
+        - [x] Fix Paragraph End
+        - [x] Line-scale parsing
     - [x] Display it
 
 - [ ] Cargo fmt

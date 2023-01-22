@@ -241,12 +241,6 @@ viewTextBox (k, (state, data)) =
 
 
 
--- type TextBlock
---     = Paragraph { chunks : List (TextChunk) }
---     | Header { level : Int, chunks : List (TextChunk) }
---     | CodeBlock { code : String }
---     | VerticalSpace
-
 viewTextBlock : TextBlock -> Html Msg
 viewTextBlock block = 
     case block of
@@ -267,18 +261,6 @@ viewTextBlock block =
 
         VerticalSpace -> div [ css [ Css.height (px 20) ] ] []
 
-
--- type alias TextChunk =
---     { text : String
---     , style : TextStyle
---     }
---
--- type alias TextStyle =
---     { bold : Bool
---     , italic : Bool
---     , underline : Bool
---     , strikethrough : Bool
---     }
 
 viewTextChunk : TextChunk -> Html Msg
 viewTextChunk chunk =

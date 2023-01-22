@@ -47,7 +47,9 @@ pub struct TextStyle {
     pub italic: bool,
     pub underline: bool,
     pub strikethrough: bool,
+    pub code: bool,
 }
+
 
 // -----------------------------------------------------------------------------
 
@@ -56,6 +58,15 @@ struct ElementPrecursor {
     startline: usize,
     endline: usize,
     fields: Vec<String>,
+}
+
+#[derive(Debug)]
+enum TextBlockPrecursor<'a> {
+    Paragraph { text: String }, // this one is String instead of &str for concatenation. 
+                                // Will fix later.
+    Header { level: u8, text: &'a str },
+    CodeBlock { code: &'a str },
+    VerticalSpace, SpacelessBreak,
 }
 
 pub fn parse(text: &str) -> Document {
@@ -113,8 +124,6 @@ pub fn parse(text: &str) -> Document {
         document.elements.insert(hash.to_string(), element);
     }
 
-    // println!("document: {:#?}", document);
-
     document
 }
 
@@ -133,10 +142,12 @@ fn split_or_end<'a>(text: &'a str, delimiter: &str) -> (&'a str, &'a str) {
 
 
 fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
-    let mut blocks: Vec<TextBlock> = Vec::new();
+    let mut blocks: Vec<TextBlockPrecursor> = Vec::new();
 
     // while there's still text to parse, try to parse a block. TextBlock parsing is LL(7), with
     // the longest substring needed being "^###### " (h6 header).
+
+    text = text.trim();
 
     while text.len() > 0 {
 
@@ -145,8 +156,7 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
             let header = format!("{} ", "#".repeat(level));
             if text.starts_with(&header) {
                 let (header, rest) = split_or_end(text[level + 1..].trim_start(), "\n");
-                let chunks = parse_text_chunks(header);
-                blocks.push(TextBlock::Header { level: level as u8, chunks });
+                blocks.push(TextBlockPrecursor::Header { level: level as u8, text: header });
                 text = rest;
                 continue;
             }
@@ -154,39 +164,118 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
 
         // try to parse a code block
         if text.starts_with("```") && let Some((code, rest)) = split(text[3..].trim_start(), "```") {
-            blocks.push(TextBlock::CodeBlock { code: code.to_string() });
+            blocks.push(TextBlockPrecursor::CodeBlock { code: code.trim() });
             text = rest;
             continue;
         }
 
         // finish by parsing a either a paragraph or a vertical space
         if text.starts_with("\n") {
-            blocks.push(TextBlock::VerticalSpace);
             text = &text[1..];
+            blocks.push(TextBlockPrecursor::SpacelessBreak);
+            while text.starts_with("\n") {
+                text = &text[1..];
+                blocks.push(TextBlockPrecursor::VerticalSpace);
+            }
         } else {
-            let (paragraph, rest) = split_or_end(text, "\n\n"); // TODO: ending immediately with a
-                                                                // codeblock or header should be
-                                                                // fine. Maybe go linewise and
-                                                                // append to old instead.
-            let chunks = parse_text_chunks(paragraph);
-            blocks.push(TextBlock::Paragraph { chunks });
+            let (paragraph, rest) = split_or_end(text, "\n");
+
+            // if the previous block was a paragraph, merge them. Otherwise, create a new one.
+
+            if let Some(TextBlockPrecursor::Paragraph { text: prev_text }) = blocks.last_mut() {
+
+                // note: this could be done without a copy if we instead track the indices into an
+                // immutable text buffer inside of TextBlockPrecursor. Maybe do that later.
+
+                *prev_text = format!("{} {}", prev_text, paragraph);
+
+            } else {
+                blocks.push(TextBlockPrecursor::Paragraph { text: paragraph.to_string() });
+            }
+
             text = rest;
         }
     }
 
-    blocks
+    blocks.into_iter().filter_map(|x| match x {
+        TextBlockPrecursor::Paragraph { text } => Some(TextBlock::Paragraph { chunks: parse_text_chunks(&text) }),
+        TextBlockPrecursor::Header { level, text } => Some(TextBlock::Header { level, chunks: parse_text_chunks(text) }),
+        TextBlockPrecursor::CodeBlock { code } => Some(TextBlock::CodeBlock { code: code.to_string() }),
+        TextBlockPrecursor::VerticalSpace => Some(TextBlock::VerticalSpace),
+        TextBlockPrecursor::SpacelessBreak => None,
+    }).collect()
 }
+
 
 fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
-    // for now, just return a single chunk without any formatting
-    vec![TextChunk {
-        text: text.to_string(),
-        style: TextStyle {
-            bold: false,
-            italic: false,
-            underline: false,
-            strikethrough: false,
-        },
-    }]
-}
+    let mut chunks: Vec<TextChunk> = Vec::new();
+    let mut state = 0u8;
+    let mut index = 0;
 
+    let bold   = 0b00000001;
+    let italic = 0b00000010;
+    let under  = 0b00000100;
+    let strike = 0b00001000;
+    let code   = 0b00010000;
+
+    fn convert(state: u8) -> TextStyle {
+        TextStyle {
+            bold:          state & 0b00000001 != 0,
+            italic:        state & 0b00000010 != 0,
+            underline:     state & 0b00000100 != 0,
+            strikethrough: state & 0b00001000 != 0,
+            code:          state & 0b00010000 != 0,
+        }
+    }
+
+    // regex that will match a single asterisk, only if there's not
+    // a second asterisk right after it.
+    let italic_regex = Regex::new(r"(^|[^\*])\*([^\*]|$)").unwrap();
+
+    while index < text.len() {
+        let bold_index = text[index..].find("**").map(|x| (x, bold));
+        let under_index = text[index..].find("__").map(|x| (x, under));
+        let strike_index = text[index..].find("~~").map(|x| (x, strike));
+        let code_index = text[index..].find("`").map(|x| (x, code));
+        let italic_index = italic_regex.find(&text[index..]).map(|x| (x.start() + 1, italic));
+
+        let mut min_index = None;
+        let mut min_flag = 0;
+
+        for s in [bold_index, under_index, strike_index, code_index, italic_index].into_iter() {
+            if let Some((index, flag)) = s {
+                if min_index.is_none() || index < min_index.unwrap() {
+                    min_index = Some(index);
+                    min_flag = flag;
+                }
+            }
+        }
+
+        if let Some(min_index) = min_index {
+            if min_index > 0 {
+                chunks.push(TextChunk {
+                    text: text[index..index + min_index].to_string(),
+                    style: convert(state),
+                });
+            }
+
+            state ^= min_flag;
+            index += min_index + match min_flag {
+                0b00000001 => 2, // bold
+                0b00000010 => 1, // italic
+                0b00000100 => 2, // underline
+                0b00001000 => 2, // strikethrough
+                0b00010000 => 1, // code
+                _ => panic!("invalid flag"),
+            };
+        } else {
+            chunks.push(TextChunk {
+                text: text[index..].to_string(),
+                style: convert(state),
+            });
+            break;
+        }
+    }
+
+    chunks
+}

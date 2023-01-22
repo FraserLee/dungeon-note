@@ -1,4 +1,4 @@
-!!!!Text!x:-350.0!y:30.0!width:700.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!Text!x:-55.0!y:30.0!width:700.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ## Advanced control flow with continuations
 
 Lets say we have a function that takes a binary tree, and returns the first
@@ -47,9 +47,83 @@ let rec find_tr (p : 'a -> bool) (t : 'a tree)
         find_tr p l find_r return
 ```
 
-!!!!Text!x:370.0!y:150.0!width:300.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!Text!x:706.0!y:1138.0!width:300.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 In addition to looking far nicer, this last version actually is more efficient.
 At the point it finds something, the original `return` is immediately called,
 without having to jump back through the stack frames of the inner matches, nor
 examine the results of the previous recursive calls.
+
+!!!!Text!x:-600.0!y:30!width:500.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+This paragraph should have zero vertical space between it and the start of the
+element. The next paragraph should have no additional vertical space between it
+and the current, beyond what you would expect from a `</p><p>` junction.
+
+The following line styles should be functional: *italic*, **bold**, `code`,
+__underline__, and ~~strikethrough~~. Single underscores like _this_ and single
+tilde like ~this~ should be displayed as is.
+
+
+This paragraph should have 1 extra "line" of space between it and the previous,
+as compared to the standard. The following should have 2 "lines".
+
+
+
+These<br>should<br>be<br>separate<br>lines.
+Each of the following lines should be its own element, with identical vertical
+space between each.
+# Inline stuff should work in a heading:
+## *italic*, **bold**, `code`, __underline__, and ~~strikethrough~~.
+foo
+### H3
+
+bar
+
+#### H4
+
+##### H5
+
+```ocaml
+let x = 1
+```
+###### H6
+```ocaml
+let y = 2
+```
+
+
+The following should be a list of items
+- indent level 0
+- indent level 0
+    - indent level 1
+        - indent level 2
+- indent level 0
+
+The following should be a numbered list
+1. foo
+2. bar
+    1. baz
+    2. quux
+
+The following should be a single blockquote
+> This is a blockquote
+> and this is the second line
+>> Where as this is nested
+> and this is back to the first level
+
+The following should be a table
+| foo | bar | baz |
+| --- | --- | --- |
+| 1   | 2   | 3   |
+| 4   | 5   | 6   |
+
+The following should be a horizontal rule
+---
+
+The following should be a link
+[link](http://example.com)
+
+The following should be an image
+![image](http://example.com/image.png)
+
