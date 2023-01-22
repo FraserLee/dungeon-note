@@ -38,6 +38,7 @@ pub enum TextBlock {
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
 pub enum TextChunk {
     Text { text: String, style: TextStyle },
+    Code { code: String },
     // Link { text: String, url: String },
     NewLine,
 }
@@ -48,7 +49,6 @@ pub struct TextStyle {
     pub italic: bool,
     pub underline: bool,
     pub strikethrough: bool,
-    pub code: bool,
 }
 
 
@@ -226,7 +226,6 @@ fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
             italic:        state & 0b00000010 != 0,
             underline:     state & 0b00000100 != 0,
             strikethrough: state & 0b00001000 != 0,
-            code:          state & 0b00010000 != 0,
         }
     }
 
@@ -249,25 +248,40 @@ fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
         let mut min_index = None;
         let mut min_flag = 0;
 
-        for s in [bold_index, under_index, strike_index, code_index, italic_index, newline_index].into_iter() {
-            if let Some((index, flag)) = s {
-                if min_index.is_none() || index < min_index.unwrap() {
-                    min_index = Some(index);
-                    min_flag = flag;
-                }
+        if state & code != 0 {
+
+            // when inside an inline code block, we only care about exiting it. 
+            // Otherwise, we check all flags to see what's next.
+
+            if let Some((index, flag)) = code_index {
+                min_index = Some(index);
+                min_flag = flag;
             }
+
+        } else {
+            [bold_index, under_index, strike_index, code_index, italic_index, newline_index]
+                .iter()
+                .filter_map(|x| *x)
+                .for_each(|(index, flag)| {
+                    if min_index.map(|x| index < x).unwrap_or(true) {
+                        min_index = Some(index);
+                        min_flag = flag;
+                    }
+                });
         }
 
         if let Some(min_index) = min_index {
-            chunks.push(TextChunk::Text {
-                text: text[index..index + min_index].to_string(),
-                style: convert(state),
-            });
-
-            if min_flag == newline {
-                chunks.push(TextChunk::NewLine);
+            if state & code != 0 {
+                chunks.push(TextChunk::Code { code: text[index..index + min_index].to_string() });
+                state &= !code;
             } else {
-                state ^= min_flag;
+                chunks.push(TextChunk::Text {
+                    text: text[index..index + min_index].to_string(),
+                    style: convert(state),
+                });
+
+                if min_flag == newline { chunks.push(TextChunk::NewLine); } 
+                else { state ^= min_flag; }
             }
 
             index += min_index + match min_flag {
@@ -277,9 +291,12 @@ fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
                 0b00001000 => 2, // strikethrough
                 0b00010000 => 1, // code
                 0b00100000 => 4, // newline
+
                 _ => panic!("invalid flag"),
             };
         } else {
+            // when we don't see any upcoming flags, we'll just add the rest
+            // as a single text chunk in the current style.
             chunks.push(TextChunk::Text {
                 text: text[index..].to_string(),
                 style: convert(state),

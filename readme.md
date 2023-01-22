@@ -39,7 +39,8 @@
 - [ ] Proper Markdown parsing
     - [x] Create sample file
         - [x] Skeleton 
-        - [ ] Add every markdown feature
+        - [x] Add every markdown feature
+
     - [ ] Parse it
         - [x] Simple multiple text boxes
         - [x] Come up with format
@@ -48,7 +49,17 @@
         - [x] Fix Paragraph End
         - [x] Line-scale parsing
         - [x] Newline Support
-        - [ ] Inline Code
+        - [x] Inline Code
+        - [ ] Links
+        - [ ] Horizontal Rules
+        - [ ] Lists
+            - [ ] Unordered
+            - [ ] Ordered
+        - [ ] Blockquotes
+        - [ ] Images: Web
+        - [ ] Images: Local
+        - [ ] Tables
+
     - [x] Display it
 
 - [ ] Cargo fmt

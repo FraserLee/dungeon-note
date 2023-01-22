@@ -261,14 +261,20 @@ viewTextBlock block =
 
         VerticalSpace -> div [ css [ Css.height (px 20) ] ] []
 
+
 viewTextChunk : TextChunk -> Html Msg
 viewTextChunk chunk = case chunk of
     Text { text, style } -> 
+
         let s_list = (if style.bold then [ Tw.font_bold ] else [])
                     ++ (if style.italic then [ Tw.italic ] else [])
                     ++ (if style.underline then [ Tw.underline ] else [])
                     ++ (if style.strikethrough then [ Tw.line_through ] else [])
+
         in span [ css s_list ] [ Html.Styled.text text ]
+
+    Code { code } -> Html.Styled.code [] [ Html.Styled.text code ]
+
     NewLine -> br [] []
 
 ------------------------------------ effects -----------------------------------
