@@ -62,9 +62,13 @@
 
     - [x] Display it
 
+- [x] Add date to document, only ever update if newer
+
 - [ ] Cargo fmt
 
 - [ ] Polish Readme
+
+- [ ] Move all sample features into more literate example file
 
 - [ ] Save Changes back to file when they're made
 
@@ -78,8 +82,8 @@
 
 - [ ] Swap last space for &nbsp; before each newline.
         - "p, h1, h2, h3, h4, h5, h6, li, dt, dd"
-- [ ] <br> breaks
-- [ ] ~~strikethrough~~
+- [x] <br> breaks
+- [x] ~~strikethrough~~
 - [ ] don't select text when dragging
 - [ ] Re-add menu bar
 - [ ] Lines

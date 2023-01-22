@@ -1,6 +1,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::time::SystemTime;
 
 use serde::{Serialize, Deserialize};
 use elm_rs::{Elm, ElmEncode, ElmDecode};
@@ -13,11 +14,13 @@ use regex::Regex;
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
 pub struct Document {
     pub elements: HashMap<String, Element>,
+    pub created: u64,
 }
 impl Document {
-    pub fn new() -> Self {
-        Self { elements: HashMap::new(), }
-    }
+    pub fn new() -> Self { Self { 
+        elements: HashMap::new(), 
+        created: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() 
+    } }
 }
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
@@ -51,6 +54,14 @@ pub struct TextStyle {
     pub strikethrough: bool,
 }
 
+// ------
+
+#[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
+pub struct DocumentUpdate {
+    pub id: String,
+    pub element: Element,
+    pub doc_created: u64,
+}
 
 // -----------------------------------------------------------------------------
 
@@ -63,17 +74,18 @@ struct ElementPrecursor {
 
 #[derive(Debug)]
 enum TextBlockPrecursor<'a> {
-    Paragraph { text: String }, // this one is String instead of &str for concatenation. 
-                                // Will fix later.
     Header { level: u8, text: &'a str },
     CodeBlock { code: &'a str },
-    VerticalSpace, SpacelessBreak,
+    SpacelessBreak, // added to separate paragraphs
+    VerticalSpace, 
+    Paragraph { text: String }, // this one is String instead of &str for concatenation. 
+                                // Fix later, so we're just referencing indices into the original
+                                // string without copying.
 }
 
 pub fn parse(text: &str) -> Document {
     let mut document = Document::new();
 
-    // find all the elements in the document
     // a element header will look like this:
     // !!!!Text!x:370.0!y:150.0!width:300.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     let re = Regex::new(r"^!!(?:!+)(Text)!x:(-?\d+(?:\.\d)?)!y:(-?\d+(?:\.\d)?)!width:(-?\d+(?:\.\d)?)!!!").unwrap();
@@ -128,7 +140,7 @@ pub fn parse(text: &str) -> Document {
     document
 }
 
-// split("foobazbar", "baz") -> ("foo", "bar")
+// split("foobazbar", "baz") -> Some(("foo", "bar"))
 fn split<'a>(text: &'a str, delimiter: &str) -> Option<(&'a str, &'a str)> {
     let mut split = text.splitn(2, delimiter);
     let first = split.next()?;
@@ -136,6 +148,7 @@ fn split<'a>(text: &'a str, delimiter: &str) -> Option<(&'a str, &'a str)> {
     Some((first, second))
 }
 
+// split_or_end("foobazbar", "quux") -> ("foobazbar", "")
 fn split_or_end<'a>(text: &'a str, delimiter: &str) -> (&'a str, &'a str) {
     split(text, delimiter).unwrap_or((text, ""))
 }
@@ -145,14 +158,18 @@ fn split_or_end<'a>(text: &'a str, delimiter: &str) -> (&'a str, &'a str) {
 fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
     let mut blocks: Vec<TextBlockPrecursor> = Vec::new();
 
-    // while there's still text to parse, try to parse a block. TextBlock parsing is LL(7), with
-    // the longest substring needed being "^###### " (h6 header).
+    // For as long as there's still text to parse, try to parse a block. 
+
+    // I think TextBlock parsing is LL(7), with the longest substring needed being "^###### " (h6
+    // header). Doesn't really matter given this model, but it's interesting to think about how
+    // I'd do this with a more involved grammar.
 
     text = text.trim();
 
     while text.len() > 0 {
 
-        // try to parse a header
+        // try to parse a header -----------------------------------------------
+
         for level in 1..=6 {
             let header = format!("{} ", "#".repeat(level));
             if text.starts_with(&header) {
@@ -163,14 +180,16 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
             }
         }
 
-        // try to parse a code block
+        // try to parse a code block -------------------------------------------
+
         if text.starts_with("```") && let Some((code, rest)) = split(text[3..].trim_start(), "```") {
             blocks.push(TextBlockPrecursor::CodeBlock { code: code.trim() });
             text = rest;
             continue;
         }
 
-        // finish by parsing a either a paragraph or a vertical space
+        // parse either a vertical space or a paragraph ------------------------
+
         if text.starts_with("\n") {
             text = &text[1..];
             blocks.push(TextBlockPrecursor::SpacelessBreak);
@@ -198,6 +217,8 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
         }
     }
 
+    // convert the precursors into TextBlocks, parsing their contents from a
+    // soup-like homogenate of characters into a deliciously chunkier form
     blocks.into_iter().filter_map(|x| match x {
         TextBlockPrecursor::Paragraph { text } => Some(TextBlock::Paragraph { chunks: parse_text_chunks(&text) }),
         TextBlockPrecursor::Header { level, text } => Some(TextBlock::Header { level, chunks: parse_text_chunks(text) }),
@@ -209,6 +230,10 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
 
 
 fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
+
+    // Might be better to convert to a recursive model, instead of trying to do 
+    // everything with a single loop.
+
     let mut chunks: Vec<TextChunk> = Vec::new();
     let mut state = 0u8;
     let mut index = 0;
@@ -217,6 +242,11 @@ fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
     let italic  = 0b00000010;
     let under   = 0b00000100;
     let strike  = 0b00001000;
+
+    // last two really probably shouldn't be bitmasks. 
+    // The others are possibly overlapping state, these are more just "things
+    // that can happen in a line"
+
     let code    = 0b00010000;
     let newline = 0b00100000;
 
@@ -234,6 +264,7 @@ fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
 
     // TODO: find out if it's harmful to call Regex::new each time we need this, if this should be
     // done once statically
+
     let italic_regex = Regex::new(r"(?:^|[^\*])(\*)(?:[^\*]|$)").unwrap();
 
     while index < text.len() {

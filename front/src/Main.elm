@@ -161,7 +161,7 @@ update msg model =
                                 } )), d), cs)
 
                             -- when we stop dragging a box, report its new state back down to the server
-                            (DragStop _, EditState (Drag _)) -> ((ESText (EditState Base), d), (updateElement key d) :: cs)
+                            (DragStop _, EditState (Drag _)) -> ((ESText (EditState Base), d), (updateElement doc.created key d) :: cs)
 
                             _ -> ((s, d), cs)
                     _ -> ((s, d), cs)
@@ -281,15 +281,15 @@ viewTextChunk chunk = case chunk of
 
 -- note: I'm just sending over an entire textbox at the moment, but I can probably
 -- be a lot more surgical about it if need comes
-updateElement : ElementId -> Element -> Cmd Msg
-updateElement id data =
+updateElement : Int -> ElementId -> Element -> Cmd Msg
+updateElement docCreated id data =
     let _ = Debug.log "Push update to server:" (id, data) in
     let url = "/update/" ++ id
-        body = elementEncoder data in
-    Http.post { body = Http.jsonBody body
-              , expect = Http.expectWhatever Posted
-              , url = url
-              }
+        body = documentUpdateEncoder { id = id, element = data, docCreated = docCreated }
+    in Http.post { body = Http.jsonBody body
+                 , expect = Http.expectWhatever Posted
+                 , url = url
+                 }
 
 
 subscriptions : Model -> Sub Msg

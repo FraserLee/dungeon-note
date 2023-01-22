@@ -15,7 +15,7 @@ use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 
 mod parser;
-use parser::{ Document, Element, TextBlock, TextChunk, TextStyle };
+use parser::{ Document, Element, TextBlock, TextChunk, TextStyle, DocumentUpdate };
 
 // -- document data ------------------------------------------------------------
 
@@ -72,8 +72,8 @@ async fn main() {
         let mut target = std::fs::File::create(env!("CARGO_MANIFEST_DIR").replace("back", "front/src/Bindings.elm")).unwrap();
 
         elm_rs::export!("Bindings", &mut target, {
-            encoders: [Document, Element, TextBlock, TextChunk, TextStyle],
-            decoders: [Document, Element, TextBlock, TextChunk, TextStyle],
+            encoders: [Document, Element, TextBlock, TextChunk, TextStyle, DocumentUpdate],
+            decoders: [Document, Element, TextBlock, TextChunk, TextStyle, DocumentUpdate],
         }).unwrap();
 
         return;
@@ -120,9 +120,16 @@ async fn main() {
     // POST /update/<id> => update document with json encoded Text
     let update = warp::path!("update" / String)
         .and(warp::body::json())
-        .map(|key: String, text: Element| {
+        .map(|key: String, update: DocumentUpdate| {
+            let mut document = DOCUMENT.lock().unwrap();
+
+            if document.created > update.doc_created {
+                println!("Ignoring stale update");
+                return warp::reply();
+            }
+
             println!("updating: {}", key);
-            DOCUMENT.lock().unwrap().elements.insert(key, text);
+            document.elements.insert(key, update.element);
             warp::reply()
         });
 
