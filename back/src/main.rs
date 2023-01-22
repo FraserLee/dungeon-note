@@ -1,3 +1,5 @@
+#![feature(let_chains)]
+
 use warp::{sse, Filter};
 
 use async_stream::stream;

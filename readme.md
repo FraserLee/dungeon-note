@@ -45,6 +45,8 @@
         - [x] Come up with format
         - [ ] Rest
 
+- [ ] Cargo fmt
+
 - [ ] Polish Readme
 
 - [ ] Save Changes back to file when they're made

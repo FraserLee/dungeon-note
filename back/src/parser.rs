@@ -107,17 +107,86 @@ pub fn parse(text: &str) -> Document {
             x: precursor.fields[1].parse().unwrap(),
             y: precursor.fields[2].parse().unwrap(),
             width: precursor.fields[3].parse().unwrap(),
-            data: parse_text_block(&text),
+            data: parse_text_blocks(&text),
         };
 
         document.elements.insert(hash.to_string(), element);
     }
 
+    println!("document: {:#?}", document);
+
     document
 }
 
-fn parse_text_block(text: &str) -> Vec<TextBlock> {
-    // TODO: ...
-    unimplemented!()
+// split("foobazbar", "baz") -> ("foo", "bar")
+fn split<'a>(text: &'a str, delimiter: &str) -> Option<(&'a str, &'a str)> {
+    let mut split = text.splitn(2, delimiter);
+    let first = split.next()?;
+    let second = split.next()?;
+    Some((first, second))
+}
+
+fn split_or_end<'a>(text: &'a str, delimiter: &str) -> (&'a str, &'a str) {
+    split(text, delimiter).unwrap_or((text, ""))
+}
+
+
+
+fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
+    let mut blocks: Vec<TextBlock> = Vec::new();
+
+    // while there's still text to parse, try to parse a block. TextBlock parsing is LL(7), with
+    // the longest substring needed being "^###### " (h6 header).
+
+    while text.len() > 0 {
+
+        // try to parse a header
+        for level in 1..=6 {
+            let header = format!("{} ", "#".repeat(level));
+            if text.starts_with(&header) {
+                let (header, rest) = split_or_end(text[level + 1..].trim_start(), "\n");
+                let chunks = parse_text_chunks(header);
+                blocks.push(TextBlock::Header { level: level as u8, chunks });
+                text = rest;
+                continue;
+            }
+        }
+
+        // try to parse a code block
+        if text.starts_with("```") && let Some((code, rest)) = split(text[3..].trim_start(), "```") {
+            blocks.push(TextBlock::CodeBlock { code: code.to_string() });
+            text = rest;
+            continue;
+        }
+
+        // finish by parsing a either a paragraph or a vertical space
+        if text.starts_with("\n") {
+            blocks.push(TextBlock::VerticalSpace);
+            text = &text[1..];
+        } else {
+            let (paragraph, rest) = split_or_end(text, "\n\n"); // TODO: ending immediately with a
+                                                                // codeblock or header should be
+                                                                // fine. Maybe go linewise and
+                                                                // append to old instead.
+            let chunks = parse_text_chunks(paragraph);
+            blocks.push(TextBlock::Paragraph { chunks });
+            text = rest;
+        }
+    }
+
+    blocks
+}
+
+fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
+    // for now, just return a single chunk without any formatting
+    vec![TextChunk {
+        text: text.to_string(),
+        style: TextStyle {
+            bold: false,
+            italic: false,
+            underline: false,
+            strikethrough: false,
+        },
+    }]
 }
 
