@@ -43,7 +43,11 @@
     - [ ] Parse it
         - [x] Simple multiple text boxes
         - [x] Come up with format
-        - [ ] Rest
+        - [x] Block-scale parsing
+        - [ ] Fix Newlines to adhere to consistent convention
+        - [ ] Fix Paragraph End
+        - [ ] Line-scale parsing
+    - [x] Display it
 
 - [ ] Cargo fmt
 

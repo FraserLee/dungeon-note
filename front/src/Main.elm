@@ -1,4 +1,4 @@
-port module Main exposing (..)
+port module Main exposing ( main )
 
 import Bindings exposing (..)
 
@@ -201,7 +201,7 @@ viewElement (k, (s, e)) =
         (ESText state, TextBox data) -> viewTextBox (k, (state, data))
         _ -> text "todo: handle other element types"
 
-viewTextBox : (ElementId, (TextBoxState, { x : Float, y : Float, width : Float, text : String })) -> Html Msg
+viewTextBox : (ElementId, (TextBoxState, { x : Float, y : Float, width : Float, data : List (TextBlock) })) -> Html Msg
 viewTextBox (k, (state, data)) =
 
     let dragIcon = div [ css [ Tw.text_white, Tw.cursor_move
@@ -232,14 +232,61 @@ viewTextBox (k, (state, data)) =
                       ViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (hex "00000000"), Tw.p_4 ]
                       EditState _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.p_4 ]
 
-           contents = (text data.text) :: (case state of
-                                            ViewState -> []
-                                            EditState _ -> [ dragWidget ])
+           contents = List.map viewTextBlock data.data 
+                           ++ (case state of
+                                    ViewState -> []
+                                    EditState _ -> [ dragWidget ])
 
     in div [ style, onClick (SelectBox (Select k)) ] contents
 
 
 
+-- type TextBlock
+--     = Paragraph { chunks : List (TextChunk) }
+--     | Header { level : Int, chunks : List (TextChunk) }
+--     | CodeBlock { code : String }
+--     | VerticalSpace
+
+viewTextBlock : TextBlock -> Html Msg
+viewTextBlock block = 
+    case block of
+
+        Paragraph { chunks } -> List.map viewTextChunk chunks |> p []
+
+        Header { level, chunks } -> 
+            List.map viewTextChunk chunks |> case level of
+                1 -> h1 []
+                2 -> h2 []
+                3 -> h3 []
+                4 -> h4 []
+                5 -> h5 []
+                6 -> h6 []
+                _ -> p []
+
+        CodeBlock { code } -> Html.Styled.pre [] [ Html.Styled.code [] [ text code ] ]
+
+        VerticalSpace -> div [ css [ Css.height (px 20) ] ] []
+
+
+-- type alias TextChunk =
+--     { text : String
+--     , style : TextStyle
+--     }
+--
+-- type alias TextStyle =
+--     { bold : Bool
+--     , italic : Bool
+--     , underline : Bool
+--     , strikethrough : Bool
+--     }
+
+viewTextChunk : TextChunk -> Html Msg
+viewTextChunk chunk =
+    let style = (if chunk.style.bold then [ Tw.font_bold ] else [])
+                ++ (if chunk.style.italic then [ Tw.italic ] else [])
+                ++ (if chunk.style.underline then [ Tw.underline ] else [])
+                ++ (if chunk.style.strikethrough then [ Tw.line_through ] else [])
+    in span [ css style ] [ text chunk.text ]
 
 ------------------------------------ effects -----------------------------------
 

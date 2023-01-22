@@ -113,7 +113,7 @@ pub fn parse(text: &str) -> Document {
         document.elements.insert(hash.to_string(), element);
     }
 
-    println!("document: {:#?}", document);
+    // println!("document: {:#?}", document);
 
     document
 }
