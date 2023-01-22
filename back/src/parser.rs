@@ -155,6 +155,7 @@ fn split_or_end<'a>(text: &'a str, delimiter: &str) -> (&'a str, &'a str) {
 
 
 
+
 fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
     let mut blocks: Vec<TextBlockPrecursor> = Vec::new();
 
@@ -183,8 +184,13 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
         // try to parse a code block -------------------------------------------
 
         if text.starts_with("```") && let Some((code, rest)) = split(text[3..].trim_start(), "```") {
+
             blocks.push(TextBlockPrecursor::CodeBlock { code: code.trim() });
-            text = rest;
+
+            // skip forwards to the start of "code code code```[ \t]*\nHERE"
+            text = rest.trim_start_matches(|c: char| c.is_whitespace() && c != '\n');
+            text = &text[1.min(text.len())..];
+
             continue;
         }
 
