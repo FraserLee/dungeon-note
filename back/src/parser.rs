@@ -230,14 +230,17 @@ fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
 
     // regex that will match a single asterisk, only if there's not
     // a second asterisk right after it.
-    let italic_regex = Regex::new(r"(^|[^\*])\*([^\*]|$)").unwrap();
+
+    // TODO: find out if it's harmful to call Regex::new each time we need this, if this should be
+    // done once statically
+    let italic_regex = Regex::new(r"(?:^|[^\*])(\*)(?:[^\*]|$)").unwrap();
 
     while index < text.len() {
         let bold_index = text[index..].find("**").map(|x| (x, bold));
         let under_index = text[index..].find("__").map(|x| (x, under));
         let strike_index = text[index..].find("~~").map(|x| (x, strike));
         let code_index = text[index..].find("`").map(|x| (x, code));
-        let italic_index = italic_regex.find(&text[index..]).map(|x| (x.start() + 1, italic));
+        let italic_index = italic_regex.captures(&text[index..]).map(|x| (x.get(1).unwrap().start(), italic));
 
         let mut min_index = None;
         let mut min_flag = 0;
