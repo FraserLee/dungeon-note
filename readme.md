@@ -47,6 +47,8 @@
         - [x] Fix Newlines to adhere to consistent convention
         - [x] Fix Paragraph End
         - [x] Line-scale parsing
+        - [x] Newline Support
+        - [ ] Inline Code
     - [x] Display it
 
 - [ ] Cargo fmt

@@ -36,9 +36,10 @@ pub enum TextBlock {
 }
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
-pub struct TextChunk {
-    pub text: String,
-    pub style: TextStyle,
+pub enum TextChunk {
+    Text { text: String, style: TextStyle },
+    // Link { text: String, url: String },
+    NewLine,
 }
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
@@ -212,11 +213,12 @@ fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
     let mut state = 0u8;
     let mut index = 0;
 
-    let bold   = 0b00000001;
-    let italic = 0b00000010;
-    let under  = 0b00000100;
-    let strike = 0b00001000;
-    let code   = 0b00010000;
+    let bold    = 0b00000001;
+    let italic  = 0b00000010;
+    let under   = 0b00000100;
+    let strike  = 0b00001000;
+    let code    = 0b00010000;
+    let newline = 0b00100000;
 
     fn convert(state: u8) -> TextStyle {
         TextStyle {
@@ -242,10 +244,12 @@ fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
         let code_index = text[index..].find("`").map(|x| (x, code));
         let italic_index = italic_regex.captures(&text[index..]).map(|x| (x.get(1).unwrap().start(), italic));
 
+        let newline_index = text[index..].find("<br>").map(|x| (x, newline));
+
         let mut min_index = None;
         let mut min_flag = 0;
 
-        for s in [bold_index, under_index, strike_index, code_index, italic_index].into_iter() {
+        for s in [bold_index, under_index, strike_index, code_index, italic_index, newline_index].into_iter() {
             if let Some((index, flag)) = s {
                 if min_index.is_none() || index < min_index.unwrap() {
                     min_index = Some(index);
@@ -255,24 +259,28 @@ fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
         }
 
         if let Some(min_index) = min_index {
-            if min_index > 0 {
-                chunks.push(TextChunk {
-                    text: text[index..index + min_index].to_string(),
-                    style: convert(state),
-                });
+            chunks.push(TextChunk::Text {
+                text: text[index..index + min_index].to_string(),
+                style: convert(state),
+            });
+
+            if min_flag == newline {
+                chunks.push(TextChunk::NewLine);
+            } else {
+                state ^= min_flag;
             }
 
-            state ^= min_flag;
             index += min_index + match min_flag {
                 0b00000001 => 2, // bold
                 0b00000010 => 1, // italic
                 0b00000100 => 2, // underline
                 0b00001000 => 2, // strikethrough
                 0b00010000 => 1, // code
+                0b00100000 => 4, // newline
                 _ => panic!("invalid flag"),
             };
         } else {
-            chunks.push(TextChunk {
+            chunks.push(TextChunk::Text {
                 text: text[index..].to_string(),
                 style: convert(state),
             });
