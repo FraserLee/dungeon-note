@@ -43,7 +43,9 @@ type TextBoxEditState = Base | Drag { iconMouseOffsetX : Float, iconMouseOffsetY
 
 type alias VolatileState = { anchorPos : { x : Float, y : Float }
                            , mousePos : { x : Float, y : Float }
-                           , elements : Dict ElementId ElementState }
+                           , elements : Dict ElementId ElementState
+                           , canSelectText : Int -- 0 = yes, 1+ = no
+                           }
 
 --------------------------------- message types --------------------------------
 
@@ -91,6 +93,7 @@ update msg model =
                     { anchorPos = { x = 0, y = 0 }
                     , mousePos = { x = 0, y = 0 }
                     , elements = Dict.map (\_ _ -> ESText ViewState) data.elements
+                    , canSelectText = 0
                     }
                 ), Cmd.batch [loadAnchorPos])
 
@@ -169,7 +172,15 @@ update msg model =
                 (elements, changes) = mapAccum processBox (zip volatile.elements doc.elements) []
                 (vElements, dElements) = unzip elements
 
-            in (Loaded ({ doc | elements = dElements }, { volatile | elements = vElements }), Cmd.batch changes)
+                -- if we're dragging something, don't allow text selection
+                canSelectText = volatile.canSelectText + case selectMode of
+                    DragStart _ -> 1
+                    DragStop _ -> -1
+                    _ -> 0
+
+            in (Loaded ({ doc | elements = dElements }
+                      , { volatile | elements = vElements, canSelectText = canSelectText }
+               ), Cmd.batch changes)
 
 
         -- fall-through (just do nothing, probably tried to act while document loading) 
@@ -190,7 +201,8 @@ view model =
 
         Loaded (doc, vol) ->
               let textBoxesHtml = List.map viewElement (Dict.toList <| zip vol.elements doc.elements)
-              in div [ css [ Tw.top_0, Tw.w_full, Tw.h_screen ] ]
+                  textSelection = if vol.canSelectText > 0 then [Tw.select_none] else []
+              in div [ css (textSelection ++ [ Tw.top_0, Tw.w_full, Tw.h_screen ]) ]
                      [ div [ id "anchor-div", css [ Tw.top_0, Tw.absolute, left (vw 50) ] ]
                          textBoxesHtml
                      ]
@@ -219,11 +231,13 @@ viewTextBox (k, (state, data)) =
                       ] [ dragIcon ]
 
         -- invisible selector that's a bit bigger than the icon itself
-        dragWidget = div [ css [ Tw.absolute, Tw.flex, Tw.justify_center, Tw.items_center
-                               , Tw.bg_transparent, Tw.cursor_move
-                               , Css.top (px -20), Css.left (px -20)
-                               , Css.width (px 40), Css.height (px 40)
-                               , Css.zIndex (int 10) ] 
+        dragWidgetCss = [ Tw.absolute, Tw.flex, Tw.justify_center, Tw.items_center
+                        , Tw.bg_transparent, Tw.cursor_move
+                        , Css.top (px -20), Css.left (px -20)
+                        , Css.width (px 40), Css.height (px 40)
+                        , Css.zIndex (int 10) ]
+
+        dragWidget = div [ css dragWidgetCss
                          , onMouseDown (SelectBox (DragStart k))
                          , onMouseUp (SelectBox (DragStop k))] [ dragBox ]
 

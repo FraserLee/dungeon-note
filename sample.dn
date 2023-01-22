@@ -50,7 +50,7 @@ let rec find_tr (p : 'a -> bool) (t : 'a tree)
 !!!!Text!x:706.0!y:1138.0!width:300.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 In addition to looking far nicer, this last version actually is more efficient.
-At the point it finds something, the original `return` is immediately called,
+At the point it finds something the original `return` is immediately called -
 without having to jump back through the stack frames of the inner matches, nor
 examine the results of the previous recursive calls.
 

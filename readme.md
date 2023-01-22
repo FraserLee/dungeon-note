@@ -84,7 +84,7 @@
         - "p, h1, h2, h3, h4, h5, h6, li, dt, dd"
 - [x] <br> breaks
 - [x] ~~strikethrough~~
-- [ ] don't select text when dragging
+- [x] don't select text when dragging
 - [ ] Re-add menu bar
 - [ ] Lines
 - [ ] Math (both asciimath and latex would be ideal)
