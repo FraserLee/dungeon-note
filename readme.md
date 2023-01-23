@@ -65,7 +65,7 @@
 
 - [x] Add date to document, only ever update if newer
 
-- [ ] Cargo fmt
+- [x] Cargo fmt
 
 - [ ] Polish Readme
 

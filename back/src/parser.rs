@@ -3,11 +3,10 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::time::SystemTime;
 
-use serde::{Serialize, Deserialize};
-use elm_rs::{Elm, ElmEncode, ElmDecode};
+use elm_rs::{Elm, ElmDecode, ElmEncode};
+use serde::{Deserialize, Serialize};
 
 use regex::Regex;
-
 
 // --------------------------- types shared with elm ---------------------------
 
@@ -17,15 +16,18 @@ pub struct Document {
     pub created: u64,
 }
 impl Document {
-    pub fn new() -> Self { Self { 
-        elements: HashMap::new(), 
-        created: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() 
+    pub fn new() -> Self { Self {
+            elements: HashMap::new(),
+            created: SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
     } }
 }
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
 pub enum Element {
-    TextBox { x: f64, y: f64, width: f64, data: Vec<TextBlock> },
+    TextBox { x: f64, y: f64, width: f64, data: Vec<TextBlock>, },
     Rect    { x: f64, y: f64, width: f64, height: f64, z: f64, color: String, },
     Line    { x1: f64, y1: f64, x2: f64, y2: f64, },
 }
@@ -72,9 +74,9 @@ enum TextBlockPrecursor<'a> {
     Header { level: u8, text: &'a str },
     CodeBlock { code: &'a str },
     SpacelessBreak, // added to separate paragraphs
-    VerticalSpace, 
+    VerticalSpace,
     HorizontalRule,
-    Paragraph { text: String }, // this one is String instead of &str for concatenation. 
+    Paragraph { text: String }, // this one is String instead of &str for concatenation.
                                 // Fix later, so we're just referencing indices into the original
                                 // string without copying.
 }
@@ -84,7 +86,8 @@ pub fn parse(text: &str) -> Document {
 
     // a element header will look like this:
     // !!!!Text!x:370.0!y:150.0!width:300.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    let re = Regex::new(r"^!!(?:!+)(Text)!x:(-?\d+(?:\.\d)?)!y:(-?\d+(?:\.\d)?)!width:(-?\d+(?:\.\d)?)!!!").unwrap();
+    let re = Regex::new(r"^!!(?:!+)(Text)!x:(-?\d+(?:\.\d)?)!y:(-?\d+(?:\.\d)?)!width:(-?\d+(?:\.\d)?)!!!")
+    .unwrap();
 
     // TODO: grab parameters in any order
     // TODO: when missing, parse parameters to a default value
@@ -96,12 +99,18 @@ pub fn parse(text: &str) -> Document {
         if let Some(caps) = re.captures(line) {
 
             let l = element_precursors.len();
+
             if l > 0 {
                 element_precursors[l - 1].endline = i - 1;
             }
 
-            let fields = caps.iter().skip(1).map(|x| x.unwrap().as_str().to_string()).collect();
-            let precursor = ElementPrecursor { fields, startline: i, endline: i };
+            let fields = caps.iter()
+                .skip(1)
+                .map(|x| x.unwrap().as_str().to_string())
+                .collect();
+
+            let precursor = ElementPrecursor { fields, startline: i, endline: i, };
+
             element_precursors.push(precursor);
         }
     }
@@ -155,7 +164,7 @@ fn split_or_end<'a>(text: &'a str, delimiter: &str) -> (&'a str, &'a str) {
 fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
     let mut blocks: Vec<TextBlockPrecursor> = Vec::new();
 
-    // For as long as there's still text to parse, try to parse a block. 
+    // For as long as there's still text to parse, try to parse a block.
 
     // I think TextBlock parsing is LL(7), with the longest substring needed being "^###### " (h6
     // header). Doesn't really matter given this model, but it's interesting to think about how
@@ -171,7 +180,10 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
             let header = format!("{} ", "#".repeat(level));
             if text.starts_with(&header) {
                 let (header, rest) = split_or_end(text[level + 1..].trim_start(), "\n");
-                blocks.push(TextBlockPrecursor::Header { level: level as u8, text: header });
+                blocks.push(TextBlockPrecursor::Header {
+                    level: level as u8,
+                    text: header,
+                });
                 text = rest;
                 continue;
             }
@@ -214,14 +226,15 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
             // if the previous block was a paragraph, merge them. Otherwise, create a new one.
 
             if let Some(TextBlockPrecursor::Paragraph { text: prev_text }) = blocks.last_mut() {
-
                 // note: this could be done without a copy if we instead track the indices into an
                 // immutable text buffer inside of TextBlockPrecursor. Maybe do that later.
 
                 *prev_text = format!("{} {}", prev_text, paragraph);
 
             } else {
-                blocks.push(TextBlockPrecursor::Paragraph { text: paragraph.to_string() });
+                blocks.push(TextBlockPrecursor::Paragraph {
+                    text: paragraph.to_string(),
+                });
             }
 
             text = rest;
@@ -269,7 +282,10 @@ fn chunk_links(mut text: &str) -> Vec<TextChunk> {
 
     while let Some((before, (link_text, link_url), after)) = split_link(text) {
         chunks.extend(chunk_breaks(before));
-        chunks.push(TextChunk::Link { title: chunk_breaks(link_text), url: link_url.to_string() });
+        chunks.push(TextChunk::Link {
+            title: chunk_breaks(link_text),
+            url: link_url.to_string(),
+        });
         text = after;
     }
 
@@ -298,7 +314,6 @@ fn chunk_breaks(mut text: &str) -> Vec<TextChunk> {
     chunks
 }
 
-
 // "foo `bar` baz" -> ["foo ", "bar", " baz"]
 fn split_code(text: &str) -> Option<(&str, &str, &str)> {
     let mut split = text.splitn(2, "`");
@@ -314,7 +329,9 @@ fn chunk_code(mut text: &str) -> Vec<TextChunk> {
 
     while let Some((before, code, after)) = split_code(text) {
         chunks.extend(chunk_style(before));
-        chunks.push(TextChunk::Code { text: code.to_string() });
+        chunks.push(TextChunk::Code {
+            text: code.to_string(),
+        });
         text = after;
     }
 
@@ -328,7 +345,7 @@ fn chunk_code(mut text: &str) -> Vec<TextChunk> {
 
 fn chunk_style(text: &str) -> Vec<TextChunk> {
 
-    // For italics, I have a regex that will match a single asterisk, only if 
+    // For italics, I have a regex that will match a single asterisk, only if
     // there's not a second asterisk right after it.
 
     // TODO: find out if it's harmful to call Regex::new each time we need this, if this should be
@@ -344,7 +361,9 @@ fn chunk_style(text: &str) -> Vec<TextChunk> {
     let bold_index = |text: &str| text.find("**").map(|x| (x, Style::Bold));
     let under_index = |text: &str| text.find("__").map(|x| (x, Style::Under));
     let strike_index = |text: &str| text.find("~~").map(|x| (x, Style::Strike));
-    let italic_index = |text: &str| italic_regex.captures(&text).map(|x| (x.get(1).unwrap().start(), Style::Italic));
+    let italic_index = |text: &str| { italic_regex.captures(&text).map(
+            |x| (x.get(1).unwrap().start(), Style::Italic)
+    ) };
 
     // grab the soonest starting style, and recurse on the text before, after, and inside of it.
     if let Some((min_index, min_style)) = [bold_index(text), under_index(text), strike_index(text), italic_index(text)]
@@ -369,10 +388,12 @@ fn chunk_style(text: &str) -> Vec<TextChunk> {
                 Style::Under => TextChunk::Underline { chunks: chunk_style(&text[min_index + 2..end_index]) },
                 Style::Strike => TextChunk::Strikethrough { chunks: chunk_style(&text[min_index + 2..end_index]) },
             });
-            chunks.extend(chunk_style(&text[end_index + match min_style { // .....**......**THIS
-                Style::Bold | Style::Under | Style::Strike => 2,
-                Style::Italic => 1,
-            }..]));
+            chunks.extend( //.....**......**THIS
+                chunk_style(&text[end_index + match min_style {
+                        Style::Bold | Style::Under | Style::Strike => 2,
+                        Style::Italic => 1,
+                }..])
+            );
         } else {
             chunks.extend(chunk_style(&text[min_index..])); // .....**THIS (no closing tag)
         }
@@ -382,4 +403,3 @@ fn chunk_style(text: &str) -> Vec<TextChunk> {
         vec![TextChunk::Text(text.to_string())]
     }
 }
-

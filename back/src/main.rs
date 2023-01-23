@@ -6,16 +6,16 @@ use async_stream::stream;
 
 use lazy_static::lazy_static;
 
-use std::sync::{Arc, Mutex};
-use std::path::Path;
-use std::time::Duration;
 use std::convert::Infallible;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 
 mod parser;
-use parser::{ Document, Element, TextBlock, TextChunk, DocumentUpdate };
+use parser::{Document, DocumentUpdate, Element, TextBlock, TextChunk};
 
 // -- document data ------------------------------------------------------------
 
@@ -25,7 +25,7 @@ lazy_static! {
     static ref DOCUMENT: Arc<Mutex<Document>> = Arc::new(Mutex::new(Document::new()));
 
     // quick and dirty cross-thread signalling, by polling a bool to see if
-    // we need to refresh stuff every second. Go back and try to figure out 
+    // we need to refresh stuff every second. Go back and try to figure out
     // the correct solution again later.
     //
     // https://gist.github.com/FraserLee/b75d88642827c5e0f49c0b8d96ad848e
@@ -69,7 +69,9 @@ async fn main() {
     // if the first argument is "--rebuild_shared_types", then just build shared types and exit
     if std::env::args().nth(1) == Some("--rebuild_shared_types".to_string()) {
 
-        let mut target = std::fs::File::create(env!("CARGO_MANIFEST_DIR").replace("back", "front/src/Bindings.elm")).unwrap();
+        let mut target = std::fs::File::create(
+            env!("CARGO_MANIFEST_DIR").replace("back", "front/src/Bindings.elm"),
+        ).unwrap();
 
         elm_rs::export!("Bindings", &mut target, {
             encoders: [Document, Element, TextBlock, TextChunk, DocumentUpdate],
@@ -98,11 +100,13 @@ async fn main() {
 
         loop {
             match rx.recv() {
-                Ok(_) => { 
-                    load_document(); 
+                Ok(_) => {
+                    load_document();
                     *DOCUMENT_REFRESHED.lock().unwrap() = true;
-                },
-                Err(e) => { println!("watch error: {:?}", e); }
+                }
+                Err(e) => {
+                    println!("watch error: {:?}", e);
+                }
             }
         }
     });
@@ -118,9 +122,9 @@ async fn main() {
     // GET /<path> => front_path/<path>
     let static_files = warp::fs::dir(FRONT_PATH.clone() + "/");
     // POST /update/<id> => update document with json encoded Text
-    let update = warp::path!("update" / String)
-        .and(warp::body::json())
-        .map(|key: String, update: DocumentUpdate| {
+    let update = warp::path!("update" / String).and(warp::body::json()).map(
+        |key: String, update: DocumentUpdate| {
+
             let mut document = DOCUMENT.lock().unwrap();
 
             if document.created > update.doc_created {
@@ -131,10 +135,12 @@ async fn main() {
             println!("updating: {}", key);
             document.elements.insert(key, update.element);
             warp::reply()
-        });
+    } );
 
     // simple SSE event
-    fn sse_event() -> Result<sse::Event, Infallible> { Ok(sse::Event::default().data("")) }
+    fn sse_event() -> Result<sse::Event, Infallible> {
+        Ok(sse::Event::default().data(""))
+    }
 
     // send an SSE event on /file_change every time the document is reloaded
     let file_change_sse = warp::path("file_change").and(warp::get()).map(|| {
