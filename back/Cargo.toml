@@ -4,22 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
-tokio-stream = "0.1"
-warp = "0.3"
+tokio = { version = "1.24.2", features = ["full"] }
+tokio-stream = "0.1.11"
+warp = "0.3.3"
 
-futures-util = "0.3"
+futures-util = "0.3.25"
 
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { version = "1.0.152", features = ["derive"] }
+serde_json = "1.0.91"
 elm_rs = { version = "0.2.1", features = ["derive", "serde"] }
 
-notify = { version = "5.0", default-features = false, features=["macos_fsevent"] }
+notify = { version = "5.0.0", default-features = false, features=["macos_fsevent"] }
 notify-debouncer-mini = "0.2.1"
-futures = "*"
-futures-core = "*"
-async-stream = "*"
+futures = "0.3.25"
+futures-core = "0.3.25"
+async-stream = "0.3.3"
 
-lazy_static = "1.4"
+lazy_static = "1.4.0"
 
 regex = "1.7.1"
