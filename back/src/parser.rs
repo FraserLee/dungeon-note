@@ -36,6 +36,7 @@ pub enum TextBlock {
     Header { level: u8, chunks: Vec<TextChunk> },
     CodeBlock { code: String },
     VerticalSpace,
+    HorizontalRule,
 }
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
@@ -72,6 +73,7 @@ enum TextBlockPrecursor<'a> {
     CodeBlock { code: &'a str },
     SpacelessBreak, // added to separate paragraphs
     VerticalSpace, 
+    HorizontalRule,
     Paragraph { text: String }, // this one is String instead of &str for concatenation. 
                                 // Fix later, so we're just referencing indices into the original
                                 // string without copying.
@@ -188,6 +190,15 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
             continue;
         }
 
+        // try to parse an <hr> ------------------------------------------------
+
+        if text.starts_with("---") {
+            blocks.push(TextBlockPrecursor::HorizontalRule);
+            text = text.trim_start_matches(|c: char| c == '-' || c.is_whitespace() && c != '\n');
+            text = &text[1.min(text.len())..];
+            continue;
+        }
+
         // parse either a vertical space or a paragraph ------------------------
 
         if text.starts_with("\n") {
@@ -224,6 +235,7 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
         TextBlockPrecursor::Header { level, text } => Some(TextBlock::Header { level, chunks: chunk_text(text) }),
         TextBlockPrecursor::CodeBlock { code } => Some(TextBlock::CodeBlock { code: code.to_string() }),
         TextBlockPrecursor::VerticalSpace => Some(TextBlock::VerticalSpace),
+        TextBlockPrecursor::HorizontalRule => Some(TextBlock::HorizontalRule),
         TextBlockPrecursor::SpacelessBreak => None,
     }).collect()
 }

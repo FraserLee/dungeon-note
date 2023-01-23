@@ -118,8 +118,10 @@ The following should be a table
 | 1   | 2   | 3   |
 | 4   | 5   | 6   |
 
-The following should be a horizontal rule
+The following should be a horizontal rule:
 ---
+as should this:
+--------------------------------------------------------------------------------
 
 Links should be [able to contain *inline* ~~styles~~ and `code`](http://example.com).
 

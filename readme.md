@@ -52,7 +52,7 @@
         - [x] Inline Code
         - [x] swap to better model for line parsing
         - [x] Links
-        - [ ] Horizontal Rules
+        - [x] Horizontal Rules
         - [ ] Lists
             - [ ] Unordered
             - [ ] Ordered

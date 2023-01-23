@@ -275,6 +275,8 @@ viewTextBlock block =
 
         VerticalSpace -> div [ css [ Css.height (px 20) ] ] []
 
+        HorizontalRule -> hr [] []
+
 
 viewTextChunk : TextChunk -> Html Msg
 viewTextChunk chunk = case chunk of
