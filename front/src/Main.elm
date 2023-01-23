@@ -11,7 +11,7 @@ import Tailwind.Utilities as Tw
 import FeatherIcons
 
 import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (css, id)
+import Html.Styled.Attributes exposing (css, id, href)
 import Html.Styled.Events exposing (onClick, onMouseDown, onMouseUp)
 
 import Json.Decode as Decode exposing (Decoder, field)
@@ -278,18 +278,14 @@ viewTextBlock block =
 
 viewTextChunk : TextChunk -> Html Msg
 viewTextChunk chunk = case chunk of
-    Text { text, style } -> 
-
-        let s_list = (if style.bold then [ Tw.font_bold ] else [])
-                    ++ (if style.italic then [ Tw.italic ] else [])
-                    ++ (if style.underline then [ Tw.underline ] else [])
-                    ++ (if style.strikethrough then [ Tw.line_through ] else [])
-
-        in span [ css s_list ] [ Html.Styled.text text ]
-
-    Code { code } -> Html.Styled.code [] [ Html.Styled.text code ]
-
-    NewLine -> br [] []
+    Link { title, url }      -> a [ href url ] <| List.map viewTextChunk title
+    Code { text }            -> code [] [ Html.Styled.text text ]
+    Bold { chunks }          -> b [] <| List.map viewTextChunk chunks
+    Italic { chunks }        -> i [] <| List.map viewTextChunk chunks
+    Strikethrough { chunks } -> s [] <| List.map viewTextChunk chunks
+    Underline { chunks }     -> u [] <| List.map viewTextChunk chunks
+    Text(text)               -> span [] [ Html.Styled.text text ]
+    NewLine                  -> br [] []
 
 ------------------------------------ effects -----------------------------------
 

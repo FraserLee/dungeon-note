@@ -121,8 +121,7 @@ The following should be a table
 The following should be a horizontal rule
 ---
 
-The following should be a link
-[link](http://example.com)
+Links should be [able to contain *inline* ~~styles~~ and `code`](http://example.com).
 
 The following should be an image
 ![image](http://example.com/image.png)

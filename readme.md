@@ -50,7 +50,8 @@
         - [x] Line-scale parsing
         - [x] Newline Support
         - [x] Inline Code
-        - [ ] Links
+        - [x] swap to better model for line parsing
+        - [x] Links
         - [ ] Horizontal Rules
         - [ ] Lists
             - [ ] Unordered
@@ -85,6 +86,7 @@
 - [x] <br> breaks
 - [x] ~~strikethrough~~
 - [x] don't select text when dragging
+- [ ] fix styling on links
 - [ ] Re-add menu bar
 - [ ] Lines
 - [ ] Math (both asciimath and latex would be ideal)

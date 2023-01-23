@@ -40,21 +40,15 @@ pub enum TextBlock {
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
 pub enum TextChunk {
-    Text { text: String, style: TextStyle },
-    Code { code: String },
-    // Link { text: String, url: String },
+    Link { title: Vec<TextChunk>, url: String },
+    Code { text: String },
+    Bold { chunks: Vec<TextChunk> },
+    Italic { chunks: Vec<TextChunk> },
+    Underline { chunks: Vec<TextChunk> },
+    Strikethrough { chunks: Vec<TextChunk> },
+    Text(String),
     NewLine,
 }
-
-#[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
-pub struct TextStyle {
-    pub bold: bool,
-    pub italic: bool,
-    pub underline: bool,
-    pub strikethrough: bool,
-}
-
-// ------
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
 pub struct DocumentUpdate {
@@ -226,8 +220,8 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
     // convert the precursors into TextBlocks, parsing their contents from a
     // soup-like homogenate of characters into a deliciously chunkier form
     blocks.into_iter().filter_map(|x| match x {
-        TextBlockPrecursor::Paragraph { text } => Some(TextBlock::Paragraph { chunks: parse_text_chunks(&text) }),
-        TextBlockPrecursor::Header { level, text } => Some(TextBlock::Header { level, chunks: parse_text_chunks(text) }),
+        TextBlockPrecursor::Paragraph { text } => Some(TextBlock::Paragraph { chunks: chunk_text(&text) }),
+        TextBlockPrecursor::Header { level, text } => Some(TextBlock::Header { level, chunks: chunk_text(text) }),
         TextBlockPrecursor::CodeBlock { code } => Some(TextBlock::CodeBlock { code: code.to_string() }),
         TextBlockPrecursor::VerticalSpace => Some(TextBlock::VerticalSpace),
         TextBlockPrecursor::SpacelessBreak => None,
@@ -235,112 +229,145 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
 }
 
 
-fn parse_text_chunks(text: &str) -> Vec<TextChunk> {
 
-    // Might be better to convert to a recursive model, instead of trying to do 
-    // everything with a single loop.
 
+
+fn chunk_text(text: &str) -> Vec<TextChunk> { chunk_links(text) }
+
+
+
+// "foo [bar](baz) quux" -> ["foo ", ("bar", "baz"), " quux"]
+fn split_link(text: &str) -> Option<(&str, (&str, &str), &str)> {
+    let mut split = text.splitn(2, "[");
+    let before = split.next()?;
+    let mut split = split.next()?.splitn(2, "](");
+    let link_text = split.next()?;
+    let mut split = split.next()?.splitn(2, ")");
+    let link_url = split.next()?;
+    let after = split.next()?;
+    Some((before, (link_text, link_url), after))
+}
+
+// this calls the next function in the chain on all text it outputs, as do all
+// similar style ones. Might consider converting this to a HOF type thing
+// (or the defunctionalized equivalent if that's not possible in Rust).
+
+fn chunk_links(mut text: &str) -> Vec<TextChunk> {
     let mut chunks: Vec<TextChunk> = Vec::new();
-    let mut state = 0u8;
-    let mut index = 0;
 
-    let bold    = 0b00000001;
-    let italic  = 0b00000010;
-    let under   = 0b00000100;
-    let strike  = 0b00001000;
-
-    // last two really probably shouldn't be bitmasks. 
-    // The others are possibly overlapping state, these are more just "things
-    // that can happen in a line"
-
-    let code    = 0b00010000;
-    let newline = 0b00100000;
-
-    fn convert(state: u8) -> TextStyle {
-        TextStyle {
-            bold:          state & 0b00000001 != 0,
-            italic:        state & 0b00000010 != 0,
-            underline:     state & 0b00000100 != 0,
-            strikethrough: state & 0b00001000 != 0,
-        }
+    while let Some((before, (link_text, link_url), after)) = split_link(text) {
+        chunks.extend(chunk_breaks(before));
+        chunks.push(TextChunk::Link { title: chunk_breaks(link_text), url: link_url.to_string() });
+        text = after;
     }
 
-    // regex that will match a single asterisk, only if there's not
-    // a second asterisk right after it.
+    chunks.extend(chunk_breaks(text));
+
+    chunks
+}
+
+// "foo<br>bar" -> ["foo", "bar"]
+fn split_break(text: &str) -> Option<(&str, &str)> {
+    let mut split = text.splitn(2, "<br>");
+    Some((split.next()?, split.next()?))
+}
+
+fn chunk_breaks(mut text: &str) -> Vec<TextChunk> {
+    let mut chunks: Vec<TextChunk> = Vec::new();
+
+    while let Some((before, after)) = split_break(text) {
+        chunks.extend(chunk_code(before));
+        chunks.push(TextChunk::NewLine);
+        text = after;
+    }
+
+    chunks.extend(chunk_code(text));
+
+    chunks
+}
+
+
+// "foo `bar` baz" -> ["foo ", "bar", " baz"]
+fn split_code(text: &str) -> Option<(&str, &str, &str)> {
+    let mut split = text.splitn(2, "`");
+    let before = split.next()?;
+    let mut split = split.next()?.splitn(2, "`");
+    let code = split.next()?;
+    let after = split.next()?;
+    Some((before, code, after))
+}
+
+fn chunk_code(mut text: &str) -> Vec<TextChunk> {
+    let mut chunks: Vec<TextChunk> = Vec::new();
+
+    while let Some((before, code, after)) = split_code(text) {
+        chunks.extend(chunk_style(before));
+        chunks.push(TextChunk::Code { text: code.to_string() });
+        text = after;
+    }
+
+    chunks.extend(chunk_style(text));
+
+    chunks
+}
+
+// last bunch of styles don't have a precedence ordering, so I'm ending the
+// chain in this single recursive function that'll parse all four of em.
+
+fn chunk_style(text: &str) -> Vec<TextChunk> {
+
+    // For italics, I have a regex that will match a single asterisk, only if 
+    // there's not a second asterisk right after it.
 
     // TODO: find out if it's harmful to call Regex::new each time we need this, if this should be
     // done once statically
 
     let italic_regex = Regex::new(r"(?:^|[^\*])(\*)(?:[^\*]|$)").unwrap();
 
-    while index < text.len() {
-        let bold_index = text[index..].find("**").map(|x| (x, bold));
-        let under_index = text[index..].find("__").map(|x| (x, under));
-        let strike_index = text[index..].find("~~").map(|x| (x, strike));
-        let code_index = text[index..].find("`").map(|x| (x, code));
-        let italic_index = italic_regex.captures(&text[index..]).map(|x| (x.get(1).unwrap().start(), italic));
+    enum Style { Bold, Italic, Strike, Under }
 
-        let newline_index = text[index..].find("<br>").map(|x| (x, newline));
+    // you could definitely do this faster by traversing forwards once with a
+    // state machine, instead of scanning with all 4 and choosing the minimum.
+    // Maybe change to that later.
+    let bold_index = |text: &str| text.find("**").map(|x| (x, Style::Bold));
+    let under_index = |text: &str| text.find("__").map(|x| (x, Style::Under));
+    let strike_index = |text: &str| text.find("~~").map(|x| (x, Style::Strike));
+    let italic_index = |text: &str| italic_regex.captures(&text).map(|x| (x.get(1).unwrap().start(), Style::Italic));
 
-        let mut min_index = None;
-        let mut min_flag = 0;
+    // grab the soonest starting style, and recurse on the text before, after, and inside of it.
+    if let Some((min_index, min_style)) = [bold_index(text), under_index(text), strike_index(text), italic_index(text)]
+                                          .into_iter()
+                                          .filter_map(|x| x)
+                                          .min_by_key(|x| x.0) {
 
-        if state & code != 0 {
+        // index of where the style ends.
+        let end_index = match min_style {
+            Style::Bold => bold_index(&text[min_index + 2..]).map(|x| x.0 + min_index + 2),
+            Style::Under => under_index(&text[min_index + 2..]).map(|x| x.0 + min_index + 2),
+            Style::Strike => strike_index(&text[min_index + 2..]).map(|x| x.0 + min_index + 2),
+            Style::Italic => italic_index(&text[min_index + 1..]).map(|x| x.0 + min_index + 1),
+        };
 
-            // when inside an inline code block, we only care about exiting it. 
-            // Otherwise, we check all flags to see what's next.
+        let mut chunks = chunk_style(&text[..min_index]); // THIS**......**....
 
-            if let Some((index, flag)) = code_index {
-                min_index = Some(index);
-                min_flag = flag;
-            }
-
-        } else {
-            [bold_index, under_index, strike_index, code_index, italic_index, newline_index]
-                .iter()
-                .filter_map(|x| *x)
-                .for_each(|(index, flag)| {
-                    if min_index.map(|x| index < x).unwrap_or(true) {
-                        min_index = Some(index);
-                        min_flag = flag;
-                    }
-                });
-        }
-
-        if let Some(min_index) = min_index {
-            if state & code != 0 {
-                chunks.push(TextChunk::Code { code: text[index..index + min_index].to_string() });
-                state &= !code;
-            } else {
-                chunks.push(TextChunk::Text {
-                    text: text[index..index + min_index].to_string(),
-                    style: convert(state),
-                });
-
-                if min_flag == newline { chunks.push(TextChunk::NewLine); } 
-                else { state ^= min_flag; }
-            }
-
-            index += min_index + match min_flag {
-                0b00000001 => 2, // bold
-                0b00000010 => 1, // italic
-                0b00000100 => 2, // underline
-                0b00001000 => 2, // strikethrough
-                0b00010000 => 1, // code
-                0b00100000 => 4, // newline
-
-                _ => panic!("invalid flag"),
-            };
-        } else {
-            // when we don't see any upcoming flags, we'll just add the rest
-            // as a single text chunk in the current style.
-            chunks.push(TextChunk::Text {
-                text: text[index..].to_string(),
-                style: convert(state),
+        if let Some(end_index) = end_index {
+            chunks.push(match min_style { // .....**THIS**......
+                Style::Bold => TextChunk::Bold { chunks: chunk_style(&text[min_index + 2..end_index]) },
+                Style::Italic => TextChunk::Italic { chunks: chunk_style(&text[min_index + 1..end_index]) },
+                Style::Under => TextChunk::Underline { chunks: chunk_style(&text[min_index + 2..end_index]) },
+                Style::Strike => TextChunk::Strikethrough { chunks: chunk_style(&text[min_index + 2..end_index]) },
             });
-            break;
+            chunks.extend(chunk_style(&text[end_index + match min_style { // .....**......**THIS
+                Style::Bold | Style::Under | Style::Strike => 2,
+                Style::Italic => 1,
+            }..]));
+        } else {
+            chunks.extend(chunk_style(&text[min_index..])); // .....**THIS (no closing tag)
         }
-    }
 
-    chunks
+        chunks
+    } else {
+        vec![TextChunk::Text(text.to_string())]
+    }
 }
+
