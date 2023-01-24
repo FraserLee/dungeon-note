@@ -53,9 +53,9 @@
         - [x] swap to better model for line parsing
         - [x] Links
         - [x] Horizontal Rules
-        - [ ] Lists
-            - [ ] Unordered
-            - [ ] Ordered
+        - [x] Lists
+            - [x] Unordered
+            - [x] Ordered
         - [ ] Blockquotes
         - [ ] Images: Web
         - [ ] Images: Local
