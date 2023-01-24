@@ -56,7 +56,7 @@
         - [x] Lists
             - [x] Unordered
             - [x] Ordered
-        - [ ] Blockquotes
+        - [x] Blockquotes
         - [ ] Images: Web
         - [ ] Images: Local
         - [ ] Tables

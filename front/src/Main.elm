@@ -283,6 +283,8 @@ viewTextBlock block =
 
         OrderedList { items } -> ol [] (List.map viewListItem items)
 
+        BlockQuote { inner } -> blockquote [] (List.map viewTextBlock inner)
+
         VerticalSpace -> div [ css [ Css.height (px 20) ] ] []
 
         HorizontalRule -> hr [] []

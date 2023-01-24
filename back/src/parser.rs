@@ -76,14 +76,51 @@ struct ElementPrecursor {
 
 #[derive(Debug)]
 enum TextBlockPrecursor<'a> {
+
     Header { level: u8, text: &'a str },
+
     CodeBlock { code: &'a str },
     UnorderedList { items: Vec<TextBlockPrecursor<'a>> },
     OrderedList { items: Vec<TextBlockPrecursor<'a>> },
-    BlockQuote { inner: Vec<TextBlockPrecursor<'a>> },
+
+    BlockQuote { inner: Vec<TextBlock> },
+
+    // With the List type elements, it's possible to parse their contents purely on the original
+    // text buffer - hence their array is also of Precursors. Less so for blockquotes - I need to
+    // create a custom de-indented buffer for the recursive parser call to run on, so I parse their
+    // contents all the way to a TextBlock from the outset as to not have a return value that's
+    // dependent on data that will go out of scope.
+    //
+    // Note: the "right" solution here would probably look a lot more like writing my own take on
+    // &str slices, so I can iterate over the text in weird ways (like skipping " > " at the start
+    // of each block comment line) without ever needing to copy the underlying data. However that
+    // would mean I probably lose out on built in Regex, and the like, so I'll take the tradeoff
+    // for now.
+
+    // Man I miss Haskell. Lazy evaluation would be so *cool* here - even if it's not actually
+    // better.
+
     SpacelessBreak, // added to separate paragraphs
+
     VerticalSpace,
+
+    // Every markdown engine I see gets this one wrong. Any time you see n empty lines, I'll insert
+    // n-1 chunks of vertical space (possibly combine for efficiency later?) That way things like:
+    //
+    //     # title
+    //     some text
+    //
+    // and
+    //
+    //     # title
+    //
+    //     some text
+    //
+    // will both parse to the same thing, but hitting <enter> a bunch of times will make an
+    // appreciable difference if some area looks cramped, or you want to create a visual break.
+
     HorizontalRule,
+
     Paragraph { text: String }, // this one is String instead of &str for concatenation.
                                 // Fix later, so we're just referencing indices into the original
                                 // string without copying.
@@ -105,7 +142,7 @@ lazy_static! {
 
     static ref UNORDERED_LIST_REGEX: Regex = Regex::new(r"^(?:\s*)([*+-]\s+)").unwrap();
 
-    static ref BLOCKQUOTE_REGEX: Regex = Regex::new(r"^(?:\s*)>(.*)$").unwrap();
+    static ref BLOCKQUOTE_REGEX: Regex = Regex::new(r"^(?:\s*)>(.*)").unwrap();
 
     // For italics, I have a regex that will match a single asterisk, only if
     // there's not a second asterisk right after it.
@@ -248,20 +285,18 @@ fn parse_text_blocks(text: &str) -> Vec<TextBlock> {
             TextBlockPrecursor::CodeBlock { code } => Some(TextBlock::CodeBlock { code: code.to_string() }),
             TextBlockPrecursor::UnorderedList { items } => Some(TextBlock::UnorderedList { items: items.into_iter().filter_map(|x| convert_precursor(x)).collect() }),
             TextBlockPrecursor::OrderedList { items } => Some(TextBlock::OrderedList { items: items.into_iter().filter_map(|x| convert_precursor(x)).collect() }),
-            TextBlockPrecursor::BlockQuote { inner } => Some(TextBlock::BlockQuote { inner: inner.into_iter().filter_map(|x| convert_precursor(x)).collect() }),
+            TextBlockPrecursor::BlockQuote { inner } => Some(TextBlock::BlockQuote { inner }),
             TextBlockPrecursor::VerticalSpace => Some(TextBlock::VerticalSpace),
             TextBlockPrecursor::HorizontalRule => Some(TextBlock::HorizontalRule),
             TextBlockPrecursor::SpacelessBreak => None,
         }
     }
 
-    let mut pool = Vec::new();
-    parse_text_block_precursors(text, &mut pool).into_iter().filter_map(|x| convert_precursor(x)).collect()
-
+    parse_text_block_precursors(text).into_iter().filter_map(|x| convert_precursor(x)).collect()
 }
 
 
-fn parse_text_block_precursors<'a>(mut text: &'a str, pool: &'a mut Vec<String>) -> Vec<TextBlockPrecursor<'a>> {
+fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
     let mut blocks: Vec<TextBlockPrecursor> = Vec::new();
 
     // For as long as there's still text to parse, try to parse a block.
@@ -325,7 +360,7 @@ fn parse_text_block_precursors<'a>(mut text: &'a str, pool: &'a mut Vec<String>)
             blocks.push( TextBlockPrecursor::UnorderedList {
                 items: list_items
                         .into_iter()
-                        .flat_map(|s| parse_text_block_precursors(s, pool))
+                        .flat_map(|s| parse_text_block_precursors(s))
                         .collect()
             } );
             continue;
@@ -345,7 +380,7 @@ fn parse_text_block_precursors<'a>(mut text: &'a str, pool: &'a mut Vec<String>)
             blocks.push( TextBlockPrecursor::OrderedList {
                 items: list_items
                         .into_iter()
-                        .flat_map(|s| parse_text_block_precursors(s, pool))
+                        .flat_map(|s| parse_text_block_precursors(s))
                         .collect()
             } );
             continue;
@@ -361,15 +396,16 @@ fn parse_text_block_precursors<'a>(mut text: &'a str, pool: &'a mut Vec<String>)
         }
 
         if blockquote_contents.len() > 0 {
-
-            pool.push(blockquote_contents);
+            println!("blockquote_contents: {}", blockquote_contents);
             
             blocks.push( TextBlockPrecursor::BlockQuote {
-                inner: parse_text_block_precursors(&pool[pool.len() - 1], pool)
+                inner: parse_text_blocks(&blockquote_contents)
             } );
-
             continue;
+        } else {
+            println!("no blockquote");
         }
+
 
 
 
