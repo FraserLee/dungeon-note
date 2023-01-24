@@ -37,8 +37,8 @@ pub enum TextBlock {
     Paragraph { chunks: Vec<TextChunk> },
     Header { level: u8, chunks: Vec<TextChunk> },
     CodeBlock { code: String },
-    UnorderedList { items: Vec<Vec<TextChunk>> },
-    OrderedList { items: Vec<Vec<TextChunk>> },
+    UnorderedList { items: Vec<TextBlock> },
+    OrderedList { items: Vec<TextBlock> },
     VerticalSpace,
     HorizontalRule,
 }
@@ -75,8 +75,8 @@ struct ElementPrecursor {
 enum TextBlockPrecursor<'a> {
     Header { level: u8, text: &'a str },
     CodeBlock { code: &'a str },
-    UnorderedList { items: Vec<&'a str> },
-    OrderedList { items: Vec<&'a str> },
+    UnorderedList { items: Vec<TextBlockPrecursor<'a>> },
+    OrderedList { items: Vec<TextBlockPrecursor<'a>> },
     SpacelessBreak, // added to separate paragraphs
     VerticalSpace,
     HorizontalRule,
@@ -213,7 +213,27 @@ fn split_scope<'a>(text: &'a str, indent: usize, test_first_line: bool) -> (&'a 
 
 
 
-fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
+fn parse_text_blocks(text: &str) -> Vec<TextBlock> {
+    // convert the precursors into TextBlocks, parsing their contents from a
+    // soup-like homogenate of characters into a deliciously chunkier form
+    fn convert_precursor(x: TextBlockPrecursor) -> Option<TextBlock> {
+        match x {
+            TextBlockPrecursor::Paragraph { text } => Some(TextBlock::Paragraph { chunks: chunk_text(&text) }),
+            TextBlockPrecursor::Header { level, text } => Some(TextBlock::Header { level, chunks: chunk_text(text) }),
+            TextBlockPrecursor::CodeBlock { code } => Some(TextBlock::CodeBlock { code: code.to_string() }),
+            TextBlockPrecursor::UnorderedList { items } => Some(TextBlock::UnorderedList { items: items.into_iter().filter_map(|x| convert_precursor(x)).collect() }),
+            TextBlockPrecursor::OrderedList { items } => Some(TextBlock::OrderedList { items: items.into_iter().filter_map(|x| convert_precursor(x)).collect() }),
+            TextBlockPrecursor::VerticalSpace => Some(TextBlock::VerticalSpace),
+            TextBlockPrecursor::HorizontalRule => Some(TextBlock::HorizontalRule),
+            TextBlockPrecursor::SpacelessBreak => None,
+        }
+    }
+
+    parse_text_block_precursors(text).into_iter().filter_map(|x| convert_precursor(x)).collect()
+}
+
+
+fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
     let mut blocks: Vec<TextBlockPrecursor> = Vec::new();
 
     // For as long as there's still text to parse, try to parse a block.
@@ -279,7 +299,11 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
                 text = rest;
             }
 
-            if list_items.len() > 0 { Some((TextBlockPrecursor::UnorderedList { items: list_items }, text)) } 
+            if list_items.len() > 0 { 
+                Some((TextBlockPrecursor::UnorderedList {
+                    items: list_items.into_iter().flat_map(|s| parse_text_block_precursors(s)).collect()
+                }, text)) 
+            } 
             else { None }
         }
 
@@ -289,10 +313,9 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
             continue;
         }
 
+        // try to parse an ordered list ----------------------------------------
 
-
-
-
+        // let ordered_list_regex = Regex::new(r"^\d+\. ").unwrap();
 
         // parse either a vertical space or a paragraph ------------------------
 
@@ -324,18 +347,7 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
         }
     }
 
-    // convert the precursors into TextBlocks, parsing their contents from a
-    // soup-like homogenate of characters into a deliciously chunkier form
-    blocks.into_iter().filter_map(|x| match x {
-        TextBlockPrecursor::Paragraph { text } => Some(TextBlock::Paragraph { chunks: chunk_text(&text) }),
-        TextBlockPrecursor::Header { level, text } => Some(TextBlock::Header { level, chunks: chunk_text(text) }),
-        TextBlockPrecursor::CodeBlock { code } => Some(TextBlock::CodeBlock { code: code.to_string() }),
-        TextBlockPrecursor::UnorderedList { items } => Some(TextBlock::UnorderedList { items: items.into_iter().map(|x| chunk_text(x)).collect() }),
-        TextBlockPrecursor::OrderedList { items } => Some(TextBlock::OrderedList { items: items.into_iter().map(|x| chunk_text(x)).collect() }),
-        TextBlockPrecursor::VerticalSpace => Some(TextBlock::VerticalSpace),
-        TextBlockPrecursor::HorizontalRule => Some(TextBlock::HorizontalRule),
-        TextBlockPrecursor::SpacelessBreak => None,
-    }).collect()
+    blocks
 }
 
 
@@ -343,7 +355,6 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
 
 
 fn chunk_text(text: &str) -> Vec<TextChunk> { chunk_links(text) }
-
 
 
 // "foo [bar](baz) quux" -> ["foo ", ("bar", "baz"), " quux"]

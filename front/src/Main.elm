@@ -257,7 +257,12 @@ viewTextBox (k, (state, data)) =
 
 viewTextBlock : TextBlock -> Html Msg
 viewTextBlock block = 
-    case block of
+
+    let viewListItem item = case item of
+            UnorderedList _ -> viewTextBlock item
+            _ -> li [] [viewTextBlock item]
+
+    in case block of
 
         Paragraph { chunks } -> List.map viewTextChunk chunks |> p []
 
@@ -273,13 +278,9 @@ viewTextBlock block =
 
         CodeBlock { code } -> Html.Styled.pre [] [ Html.Styled.code [] [ text code ] ]
 
-        UnorderedList { items } -> 
-            let viewListItem item = li [] (List.map viewTextChunk item)
-            in ul [] (List.map viewListItem items)
+        UnorderedList { items } -> ul [] (List.map viewListItem items)
 
-        OrderedList { items } ->
-            let viewListItem item = li [] (List.map viewTextChunk item)
-            in ol [] (List.map viewListItem items)
+        OrderedList { items } -> ol [] (List.map viewListItem items)
 
         VerticalSpace -> div [ css [ Css.height (px 20) ] ] []
 
