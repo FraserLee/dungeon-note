@@ -64,8 +64,9 @@
     - [x] Display it
 
 - [x] Add date to document, only ever update if newer
-
 - [x] Cargo fmt
+
+- [ ] Make regex lazy static
 
 - [ ] Polish Readme
 

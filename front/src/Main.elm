@@ -259,6 +259,7 @@ viewTextBlock : TextBlock -> Html Msg
 viewTextBlock block = 
 
     let viewListItem item = case item of
+            OrderedList _ -> viewTextBlock item
             UnorderedList _ -> viewTextBlock item
             _ -> li [] [viewTextBlock item]
 
