@@ -66,13 +66,13 @@
 - [x] Add date to document, only ever update if newer
 - [x] Cargo fmt
 
-- [ ] Make regex lazy static
+- [x] Stop regenerating regex unnecessarily
+
+- [ ] Save Changes back to file when they're made
 
 - [ ] Polish Readme
 
 - [ ] Move all sample features into more literate example file
-
-- [ ] Save Changes back to file when they're made
 
 - [ ] Further Textbox edit capabilities
     - [ ] horizontal resize

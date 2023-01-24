@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::time::SystemTime;
 
+use lazy_static::lazy_static;
+
 use elm_rs::{Elm, ElmDecode, ElmEncode};
 use serde::{Deserialize, Serialize};
 
@@ -85,13 +87,29 @@ enum TextBlockPrecursor<'a> {
                                 // string without copying.
 }
 
-pub fn parse(text: &str) -> Document {
-    let mut document = Document::new();
+// ----------------------------- regex definitions -----------------------------
 
+lazy_static! {
     // a element header will look like this:
     // !!!!Text!x:370.0!y:150.0!width:300.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    let re = Regex::new(r"^!!(?:!+)(Text)!x:(-?\d+(?:\.\d)?)!y:(-?\d+(?:\.\d)?)!width:(-?\d+(?:\.\d)?)!!!")
-    .unwrap();
+    static ref ELEMENT_HEADER_REGEX: Regex = Regex::new(r"^!!(?:!+)(Text)!x:(-?\d+(?:\.\d)?)!y:(-?\d+(?:\.\d)?)!width:(-?\d+(?:\.\d)?)!!!").unwrap();
+
+    // matches numbers, but also some simple roman numerals. The choice of
+    // which you use doesn't actually effect the output (yet, look into this)
+    static ref ORDERED_LIST_REGEX: Regex = Regex::new(r"^(?:\s*)((?:[ivx]+|\d+)\.\s+)").unwrap();
+
+    static ref UNORDERED_LIST_REGEX: Regex = Regex::new(r"^(?:\s*)([*+-]\s+)").unwrap();
+
+    // For italics, I have a regex that will match a single asterisk, only if
+    // there's not a second asterisk right after it.
+    static ref ITALIC_REGEX: Regex = Regex::new(r"(?:^|[^\*])(\*)(?:[^\*]|$)").unwrap();
+
+}
+
+// -----------------------------------------------------------------------------
+
+pub fn parse(text: &str) -> Document {
+    let mut document = Document::new();
 
     // TODO: grab parameters in any order
     // TODO: when missing, parse parameters to a default value
@@ -100,7 +118,7 @@ pub fn parse(text: &str) -> Document {
     let mut element_precursors: Vec<ElementPrecursor> = Vec::new();
 
     for (i, line) in text.lines().enumerate() {
-        if let Some(caps) = re.captures(line) {
+        if let Some(caps) = ELEMENT_HEADER_REGEX.captures(line) {
 
             let l = element_precursors.len();
 
@@ -285,11 +303,8 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
         
         // try to parse an unordered list --------------------------------------
 
-
-        let unordered_list_regex = Regex::new(r"^(?:\s*)([*+-]\s+)").unwrap();
-
         let mut list_items: Vec<&str> = Vec::new();
-        while let Some(captures) = unordered_list_regex.captures(text) {
+        while let Some(captures) = UNORDERED_LIST_REGEX.captures(text) {
             let indent_level = count_indent(text) + captures[1].len();
             let (item_text, rest) = split_scope(text, indent_level, false);
             list_items.push(&item_text[captures[0].len()..]);
@@ -308,12 +323,8 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
 
         // try to parse an ordered list ----------------------------------------
 
-        // matches numbers, but also some simple roman numerals. The choice of
-        // which you use doesn't actually effect the output (yet, look into this)
-        let ordered_list_regex = Regex::new(r"^(?:\s*)((?:[ivx]+|\d+)\.\s+)").unwrap();
-
         let mut list_items: Vec<&str> = Vec::new();
-        while let Some(captures) = ordered_list_regex.captures(text) {
+        while let Some(captures) = ORDERED_LIST_REGEX.captures(text) {
             let indent_level = count_indent(text) + captures[1].len();
             let (item_text, rest) = split_scope(text, indent_level, false);
             list_items.push(&item_text[captures[0].len()..]);
@@ -454,14 +465,6 @@ fn chunk_code(mut text: &str) -> Vec<TextChunk> {
 
 fn chunk_style(text: &str) -> Vec<TextChunk> {
 
-    // For italics, I have a regex that will match a single asterisk, only if
-    // there's not a second asterisk right after it.
-
-    // TODO: find out if it's harmful to call Regex::new each time we need this, if this should be
-    // done once statically
-
-    let italic_regex = Regex::new(r"(?:^|[^\*])(\*)(?:[^\*]|$)").unwrap();
-
     enum Style { Bold, Italic, Strike, Under }
 
     // you could definitely do this faster by traversing forwards once with a
@@ -470,7 +473,7 @@ fn chunk_style(text: &str) -> Vec<TextChunk> {
     let bold_index = |text: &str| text.find("**").map(|x| (x, Style::Bold));
     let under_index = |text: &str| text.find("__").map(|x| (x, Style::Under));
     let strike_index = |text: &str| text.find("~~").map(|x| (x, Style::Strike));
-    let italic_index = |text: &str| { italic_regex.captures(&text).map(
+    let italic_index = |text: &str| { ITALIC_REGEX.captures(&text).map(
             |x| (x.get(1).unwrap().start(), Style::Italic)
     ) };
 
