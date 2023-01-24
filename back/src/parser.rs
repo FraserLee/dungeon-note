@@ -285,66 +285,50 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
         
         // try to parse an unordered list --------------------------------------
 
-        fn parse_unordered_list(mut text: &str) -> Option<(TextBlockPrecursor, &str)> {
 
-            let unordered_list_regex = Regex::new(r"^(?:\s*)([*+-]\s+)").unwrap();
+        let unordered_list_regex = Regex::new(r"^(?:\s*)([*+-]\s+)").unwrap();
 
-            let mut list_items: Vec<&str> = Vec::new();
-            while let Some(captures) = unordered_list_regex.captures(text) {
-                let indent_level = count_indent(text) + captures[1].len();
-                let (item_text, rest) = split_scope(text, indent_level, false);
-                list_items.push(&item_text[captures[0].len()..]);
-                text = rest;
-            }
-
-            if list_items.len() > 0 { 
-                Some((TextBlockPrecursor::UnorderedList {
-                    items: list_items
-                            .into_iter()
-                            .flat_map(|s| parse_text_block_precursors(s))
-                            .collect()
-                }, text)) 
-            } else { None }
+        let mut list_items: Vec<&str> = Vec::new();
+        while let Some(captures) = unordered_list_regex.captures(text) {
+            let indent_level = count_indent(text) + captures[1].len();
+            let (item_text, rest) = split_scope(text, indent_level, false);
+            list_items.push(&item_text[captures[0].len()..]);
+            text = rest;
         }
 
-        if let Some((list, rest)) = parse_unordered_list(text) {
-            blocks.push(list);
-            text = rest;
+        if list_items.len() > 0 { 
+            blocks.push( TextBlockPrecursor::UnorderedList {
+                items: list_items
+                        .into_iter()
+                        .flat_map(|s| parse_text_block_precursors(s))
+                        .collect()
+            } );
             continue;
         }
 
         // try to parse an ordered list ----------------------------------------
 
-        fn parse_ordered_list(mut text: &str) -> Option<(TextBlockPrecursor, &str)> {
+        // matches numbers, but also some simple roman numerals. The choice of
+        // which you use doesn't actually effect the output (yet, look into this)
+        let ordered_list_regex = Regex::new(r"^(?:\s*)((?:[ivx]+|\d+)\.\s+)").unwrap();
 
-            // matches numbers, but also some simple roman numerals. The choice of
-            // which you use doesn't actually effect the output (yet, look into this)
-            let ordered_list_regex = Regex::new(r"^(?:\s*)((?:[ivx]+|\d+)\.\s+)").unwrap();
-
-            let mut list_items: Vec<&str> = Vec::new();
-            while let Some(captures) = ordered_list_regex.captures(text) {
-                let indent_level = count_indent(text) + captures[1].len();
-                let (item_text, rest) = split_scope(text, indent_level, false);
-                list_items.push(&item_text[captures[0].len()..]);
-                text = rest;
-            }
-
-            if list_items.len() > 0 { 
-                Some((TextBlockPrecursor::OrderedList {
-                    items: list_items
-                            .into_iter()
-                            .flat_map(|s| parse_text_block_precursors(s))
-                            .collect()
-                }, text)) 
-            } else { None }
+        let mut list_items: Vec<&str> = Vec::new();
+        while let Some(captures) = ordered_list_regex.captures(text) {
+            let indent_level = count_indent(text) + captures[1].len();
+            let (item_text, rest) = split_scope(text, indent_level, false);
+            list_items.push(&item_text[captures[0].len()..]);
+            text = rest;
         }
 
-        if let Some((list, rest)) = parse_ordered_list(text) {
-            blocks.push(list);
-            text = rest;
+        if list_items.len() > 0 { 
+            blocks.push( TextBlockPrecursor::OrderedList {
+                items: list_items
+                        .into_iter()
+                        .flat_map(|s| parse_text_block_precursors(s))
+                        .collect()
+            } );
             continue;
         }
-
 
         // parse either a vertical space or a paragraph ------------------------
 
