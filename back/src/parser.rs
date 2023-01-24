@@ -41,6 +41,7 @@ pub enum TextBlock {
     CodeBlock { code: String },
     UnorderedList { items: Vec<TextBlock> },
     OrderedList { items: Vec<TextBlock> },
+    BlockQuote { inner: Vec<TextBlock> },
     VerticalSpace,
     HorizontalRule,
 }
@@ -79,6 +80,7 @@ enum TextBlockPrecursor<'a> {
     CodeBlock { code: &'a str },
     UnorderedList { items: Vec<TextBlockPrecursor<'a>> },
     OrderedList { items: Vec<TextBlockPrecursor<'a>> },
+    BlockQuote { inner: Vec<TextBlockPrecursor<'a>> },
     SpacelessBreak, // added to separate paragraphs
     VerticalSpace,
     HorizontalRule,
@@ -87,9 +89,12 @@ enum TextBlockPrecursor<'a> {
                                 // string without copying.
 }
 
-// ----------------------------- regex definitions -----------------------------
+// -----------------------------------------------------------------------------
 
 lazy_static! {
+
+    // --------------------------- regex definitions ---------------------------
+
     // a element header will look like this:
     // !!!!Text!x:370.0!y:150.0!width:300.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     static ref ELEMENT_HEADER_REGEX: Regex = Regex::new(r"^!!(?:!+)(Text)!x:(-?\d+(?:\.\d)?)!y:(-?\d+(?:\.\d)?)!width:(-?\d+(?:\.\d)?)!!!").unwrap();
@@ -99,6 +104,8 @@ lazy_static! {
     static ref ORDERED_LIST_REGEX: Regex = Regex::new(r"^(?:\s*)((?:[ivx]+|\d+)\.\s+)").unwrap();
 
     static ref UNORDERED_LIST_REGEX: Regex = Regex::new(r"^(?:\s*)([*+-]\s+)").unwrap();
+
+    static ref BLOCKQUOTE_REGEX: Regex = Regex::new(r"^(?:\s*)>(.*)$").unwrap();
 
     // For italics, I have a regex that will match a single asterisk, only if
     // there's not a second asterisk right after it.
@@ -241,6 +248,7 @@ fn parse_text_blocks(text: &str) -> Vec<TextBlock> {
             TextBlockPrecursor::CodeBlock { code } => Some(TextBlock::CodeBlock { code: code.to_string() }),
             TextBlockPrecursor::UnorderedList { items } => Some(TextBlock::UnorderedList { items: items.into_iter().filter_map(|x| convert_precursor(x)).collect() }),
             TextBlockPrecursor::OrderedList { items } => Some(TextBlock::OrderedList { items: items.into_iter().filter_map(|x| convert_precursor(x)).collect() }),
+            TextBlockPrecursor::BlockQuote { inner } => Some(TextBlock::BlockQuote { inner: inner.into_iter().filter_map(|x| convert_precursor(x)).collect() }),
             TextBlockPrecursor::VerticalSpace => Some(TextBlock::VerticalSpace),
             TextBlockPrecursor::HorizontalRule => Some(TextBlock::HorizontalRule),
             TextBlockPrecursor::SpacelessBreak => None,
@@ -340,6 +348,28 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
             } );
             continue;
         }
+
+        // try to parse a blockquote -------------------------------------------
+
+        let mut blockquote_contents: String = "".to_string();
+        while let Some(captures) = BLOCKQUOTE_REGEX.captures(text) {
+            text = &text[captures[0].len()..];
+            blockquote_contents.push_str(&captures[1]);
+            blockquote_contents.push_str("\n");
+        }
+
+        if blockquote_contents.len() > 0 {
+
+            
+            blocks.push( TextBlockPrecursor::BlockQuote {
+                inner: parse_text_block_precursors(&blockquote_contents);
+            } );
+            continue;
+        }
+
+
+
+
 
         // parse either a vertical space or a paragraph ------------------------
 
