@@ -255,11 +255,13 @@ fn parse_text_blocks(text: &str) -> Vec<TextBlock> {
         }
     }
 
-    parse_text_block_precursors(text).into_iter().filter_map(|x| convert_precursor(x)).collect()
+    let mut pool = Vec::new();
+    parse_text_block_precursors(text, &mut pool).into_iter().filter_map(|x| convert_precursor(x)).collect()
+
 }
 
 
-fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
+fn parse_text_block_precursors<'a>(mut text: &'a str, pool: &'a mut Vec<String>) -> Vec<TextBlockPrecursor<'a>> {
     let mut blocks: Vec<TextBlockPrecursor> = Vec::new();
 
     // For as long as there's still text to parse, try to parse a block.
@@ -323,7 +325,7 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
             blocks.push( TextBlockPrecursor::UnorderedList {
                 items: list_items
                         .into_iter()
-                        .flat_map(|s| parse_text_block_precursors(s))
+                        .flat_map(|s| parse_text_block_precursors(s, pool))
                         .collect()
             } );
             continue;
@@ -343,7 +345,7 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
             blocks.push( TextBlockPrecursor::OrderedList {
                 items: list_items
                         .into_iter()
-                        .flat_map(|s| parse_text_block_precursors(s))
+                        .flat_map(|s| parse_text_block_precursors(s, pool))
                         .collect()
             } );
             continue;
@@ -360,13 +362,14 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
 
         if blockquote_contents.len() > 0 {
 
+            pool.push(blockquote_contents);
             
             blocks.push( TextBlockPrecursor::BlockQuote {
-                inner: parse_text_block_precursors(&blockquote_contents);
+                inner: parse_text_block_precursors(&pool[pool.len() - 1], pool)
             } );
+
             continue;
         }
-
 
 
 
