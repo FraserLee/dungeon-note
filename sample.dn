@@ -97,8 +97,14 @@ The following should be a list of items
 - indent level 0
 - indent level 0
     - indent level 1
-        - indent level 2
+    - indent level 1
 - indent level 0
+    - indent level 1
+        - indent level 2
+        - indent level 2
+    - indent level 1
+- indent level 0
+            - indent level 3
 
 The following should be a numbered list
 1. foo

@@ -104,4 +104,6 @@
     - [ ] website version with in-textbox editors and cloud sync
 - [ ] make youtube video about how to use this, write tutorials
 - [ ] syntax highlighting for .dn files
+- [ ] put on brew
+- [ ] vim plugin
 - [ ] find out other things that should be on this list.

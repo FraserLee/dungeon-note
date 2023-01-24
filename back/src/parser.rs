@@ -37,6 +37,8 @@ pub enum TextBlock {
     Paragraph { chunks: Vec<TextChunk> },
     Header { level: u8, chunks: Vec<TextChunk> },
     CodeBlock { code: String },
+    UnorderedList { items: Vec<Vec<TextChunk>> },
+    OrderedList { items: Vec<Vec<TextChunk>> },
     VerticalSpace,
     HorizontalRule,
 }
@@ -73,6 +75,8 @@ struct ElementPrecursor {
 enum TextBlockPrecursor<'a> {
     Header { level: u8, text: &'a str },
     CodeBlock { code: &'a str },
+    UnorderedList { items: Vec<&'a str> },
+    OrderedList { items: Vec<&'a str> },
     SpacelessBreak, // added to separate paragraphs
     VerticalSpace,
     HorizontalRule,
@@ -161,6 +165,54 @@ fn split_or_end<'a>(text: &'a str, delimiter: &str) -> (&'a str, &'a str) {
 
 
 
+// I tried to turn this into a trait, but stuff is weird with lifetimes.
+fn trim_start_no_newline(text: &str) -> &str {
+    text.trim_start_matches(|c: char| c.is_whitespace() && c != '\n')
+}
+
+// Tabs counted as 4 spaces.
+fn count_indent(text: &str) -> usize {
+    let mut count = 0;
+    for c in text.chars() {
+        match c {
+            '\t' => count += 4,
+            ' ' => count += 1,
+            _ => break,
+        }
+    }
+    count
+}
+
+#[test]
+fn split_scope_test() {
+    let text = r#"header
+        line 1
+            line 2
+        line 3
+    line 4"#;
+
+    let (first, second) = split_scope(text, 8, false);
+
+    assert_eq!(first, "header\n        line 1\n            line 2\n        line 3\n");
+    assert_eq!(second, "    line 4");
+}
+
+
+// Takes a string and an indent level, splits at the first line less indented than the indent
+// level. Set test_first_line to true if you want the possibility of the first line being rejected
+// outright, returning ("" , text).
+fn split_scope<'a>(text: &'a str, indent: usize, test_first_line: bool) -> (&'a str, &'a str) {
+    let mut index = 0;
+    for (i, line) in text.lines().enumerate() {
+        if (i != 0 || test_first_line) && count_indent(line) < indent { break; }
+        index += line.len() + 1;
+    }
+    if index < text.len() { (&text[..index], &text[index..]) } 
+    else { (text, "") }
+}
+
+
+
 fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
     let mut blocks: Vec<TextBlockPrecursor> = Vec::new();
 
@@ -196,7 +248,7 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
             blocks.push(TextBlockPrecursor::CodeBlock { code: code.trim() });
 
             // skip forwards to the start of "code code code```[ \t]*\nHERE"
-            text = rest.trim_start_matches(|c: char| c.is_whitespace() && c != '\n');
+            text = trim_start_no_newline(rest);
             text = &text[1.min(text.len())..];
 
             continue;
@@ -206,10 +258,35 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
 
         if text.starts_with("---") {
             blocks.push(TextBlockPrecursor::HorizontalRule);
-            text = text.trim_start_matches(|c: char| c == '-' || c.is_whitespace() && c != '\n');
+            text = trim_start_no_newline(text.trim_start_matches('-'));
             text = &text[1.min(text.len())..];
             continue;
         }
+        
+        // try to parse an unordered list --------------------------------------
+
+
+        let mut list_items: Vec<&str> = Vec::new();
+        while trim_start_no_newline(text).starts_with("- ") {
+            let indent_level = count_indent(text) + 2;
+            let (mut item_text, rest) = split_scope(text, indent_level, false);
+
+            // trim the "- " from the start of the item
+            item_text = &trim_start_no_newline(item_text)[2..];
+
+            list_items.push(item_text);
+            text = rest;
+        }
+
+        if list_items.len() > 0 {
+            blocks.push(TextBlockPrecursor::UnorderedList { items: list_items });
+            continue;
+        }
+
+
+
+
+
 
         // parse either a vertical space or a paragraph ------------------------
 
@@ -247,6 +324,8 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
         TextBlockPrecursor::Paragraph { text } => Some(TextBlock::Paragraph { chunks: chunk_text(&text) }),
         TextBlockPrecursor::Header { level, text } => Some(TextBlock::Header { level, chunks: chunk_text(text) }),
         TextBlockPrecursor::CodeBlock { code } => Some(TextBlock::CodeBlock { code: code.to_string() }),
+        TextBlockPrecursor::UnorderedList { items } => Some(TextBlock::UnorderedList { items: items.into_iter().map(|x| chunk_text(x)).collect() }),
+        TextBlockPrecursor::OrderedList { items } => Some(TextBlock::OrderedList { items: items.into_iter().map(|x| chunk_text(x)).collect() }),
         TextBlockPrecursor::VerticalSpace => Some(TextBlock::VerticalSpace),
         TextBlockPrecursor::HorizontalRule => Some(TextBlock::HorizontalRule),
         TextBlockPrecursor::SpacelessBreak => None,

@@ -273,6 +273,14 @@ viewTextBlock block =
 
         CodeBlock { code } -> Html.Styled.pre [] [ Html.Styled.code [] [ text code ] ]
 
+        UnorderedList { items } -> 
+            let viewListItem item = li [] (List.map viewTextChunk item)
+            in ul [] (List.map viewListItem items)
+
+        OrderedList { items } ->
+            let viewListItem item = li [] (List.map viewTextChunk item)
+            in ol [] (List.map viewListItem items)
+
         VerticalSpace -> div [ css [ Css.height (px 20) ] ] []
 
         HorizontalRule -> hr [] []
