@@ -265,21 +265,27 @@ fn parse_text_blocks(mut text: &str) -> Vec<TextBlock> {
         
         // try to parse an unordered list --------------------------------------
 
+        fn parse_list(mut text: &str) -> Option<(TextBlockPrecursor, &str)> {
 
-        let mut list_items: Vec<&str> = Vec::new();
-        while trim_start_no_newline(text).starts_with("- ") {
-            let indent_level = count_indent(text) + 2;
-            let (mut item_text, rest) = split_scope(text, indent_level, false);
+            let mut list_items: Vec<&str> = Vec::new();
+            while trim_start_no_newline(text).starts_with("- ") {
+                let indent_level = count_indent(text) + 2;
+                let (mut item_text, rest) = split_scope(text, indent_level, false);
 
-            // trim the "- " from the start of the item
-            item_text = &trim_start_no_newline(item_text)[2..];
+                // trim the "- " from the start of the item
+                item_text = &trim_start_no_newline(item_text)[2..];
 
-            list_items.push(item_text);
-            text = rest;
+                list_items.push(item_text);
+                text = rest;
+            }
+
+            if list_items.len() > 0 { Some((TextBlockPrecursor::UnorderedList { items: list_items }, text)) } 
+            else { None }
         }
 
-        if list_items.len() > 0 {
-            blocks.push(TextBlockPrecursor::UnorderedList { items: list_items });
+        if let Some((list, rest)) = parse_list(text) {
+            blocks.push(list);
+            text = rest;
             continue;
         }
 
