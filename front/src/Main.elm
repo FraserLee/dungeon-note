@@ -246,8 +246,8 @@ viewTextBox (k, (state, data)) =
 
     in let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.left (Css.px data.x), Css.top (Css.px data.y)] 
                  ++ case state of
-                      ViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.p_4 ]
-                      EditState _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.p_4 ]
+                      ViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
+                      EditState _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
 
            contents = List.map viewTextBlock data.data 
                            ++ (case state of
@@ -288,9 +288,7 @@ viewTextBlock block =
 
         BlockQuote { inner } -> blockquote [] (List.map viewTextBlock inner)
 
-        Image { url, alt } -> img [ Attributes.src url
-                                  , Attributes.alt alt 
-                                  , css [ Tw.w_full ] ] []
+        Image { url, alt } -> img [ Attributes.src url, Attributes.alt alt ] []
 
         VerticalSpace -> div [ css [ Css.height (Css.px 20) ] ] []
 
