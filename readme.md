@@ -21,6 +21,7 @@
         - [x] larger selection-div than element itself
         - [x] offset by position within drag icon
     - [x] drag and drop tri-state mode system
+    - [x] don't select text when dragging
 
 - [x] Have changes get pushed backwards to python
 - [x] Only push back on dragstop, not continually 
@@ -36,12 +37,12 @@
 - [x] Genericize from "TextBox" to element sum-type
 - [x] Unified Types between frontend and backend
 - [x] JSON serialization and deserialization for unified types
-- [ ] Proper Markdown parsing
+- [x] Proper Markdown parsing
     - [x] Create sample file
         - [x] Skeleton 
         - [x] Add every markdown feature
 
-    - [ ] Parse it
+    - [x] Parse it
         - [x] Simple multiple text boxes
         - [x] Come up with format
         - [x] Block-scale parsing
@@ -53,19 +54,19 @@
         - [x] swap to better model for line parsing
         - [x] Links
         - [x] Horizontal Rules
+        - [x] <br> breaks
+        - [x] ~~strikethrough~~
         - [x] Lists
             - [x] Unordered
             - [x] Ordered
         - [x] Blockquotes
-        - [x] Images
-            - [x] Web Links
-            - [ ] Local Files
-        - [ ] Tables
+        - [x] Web-linked Images
 
     - [x] Display it
 
 - [x] Add date to document, only ever update if newer
-- [x] Cargo fmt
+
+- [x] Cargo fmt my code
 
 - [x] Stop regenerating regex unnecessarily
 
@@ -78,33 +79,36 @@
 
 - [ ] Move all sample features into more literate example file
 
-- [ ] Further Textbox edit capabilities
-    - [ ] horizontal resize
+- [ ] Further Textbox edit-mode capabilities
+    - [ ] Proper left-right position / resize
+    - [ ] Drag centre does position
     - [ ] rotation
-        - while single-pixel wheel around the point of the thing, mouseover
+        - white single-pixel wheel around the point of the thing, mouseover
     - [ ] deselect when clicking background
 
 - [ ] Rectangles
 
-- [ ] Swap last space for &nbsp; before each newline.
-        - "p, h1, h2, h3, h4, h5, h6, li, dt, dd"
-- [x] <br> breaks
-- [x] ~~strikethrough~~
-- [x] don't select text when dragging
+- [ ] Lines
+
 - [ ] More arbitrary zooming
     - [ ] Create a sample project where I can zoom in and out and move stuff around infinitely on a canvas containing a div
     - [ ] Swap dungeon note over to this model
+
+- [ ] Z-order on arbitrary elements with forwards / backwards buttons
+
 - [ ] fix styling on links
+- [ ] Local File Images
+- [ ] Tables in markdown
+- [ ] Swap last space for &nbsp; before each newline.
+        - "p, h1, h2, h3, h4, h5, h6, li, dt, dd"
+
 - [ ] Re-add menu bar
-- [ ] Lines
 - [ ] Math (both asciimath and latex would be ideal)
     - generate html on the backend, don't have anything like MathJax
       running on the site
-- [ ] Images
 - [ ] Memoize markdown parsing
 - [ ] Highlight CodeBlocks
-- [ ] Execute CodeBlocks
-- [ ] Z-order on arbitrary elements with forwards / backwards buttons
+- [ ] Executable CodeBlocks
 - [ ] Write tests
 - [ ] dynamically adjust pivot so stuff is never offscreen to the left
 - [ ] glorious unified system
