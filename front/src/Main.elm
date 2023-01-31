@@ -6,13 +6,16 @@ import Browser
 import Browser.Events exposing (onMouseMove, onKeyDown)
 import Browser.Dom exposing (getElement)
 
-import Css exposing (..)
+import Css
 import Tailwind.Utilities as Tw
 import FeatherIcons
 
-import Html.Styled exposing (..)
-import Html.Styled.Attributes exposing (css, id, href)
-import Html.Styled.Events exposing (onClick, onMouseDown, onMouseUp)
+import Html.Styled exposing (Html, div, span, p, text, h1, h2, h3, h4, h5, h6
+                                 , b, i, u, s, a, img, code, li, ol, ul
+                                 , blockquote, br, hr)
+
+import Html.Styled.Attributes as Attributes exposing (css)
+import Html.Styled.Events as Events
 
 import Json.Decode as Decode exposing (Decoder, field)
 
@@ -203,7 +206,7 @@ view model =
               let textBoxesHtml = List.map viewElement (Dict.toList <| zip vol.elements doc.elements)
                   textSelection = if vol.canSelectText > 0 then [Tw.select_none] else []
               in div [ css (textSelection ++ [ Tw.top_0, Tw.w_full, Tw.h_screen ]) ]
-                     [ div [ id "anchor-div", css [ Tw.top_0, Tw.absolute, left (vw 50) ] ]
+                     [ div [ Attributes.id "anchor-div", css [ Tw.top_0, Tw.absolute, Css.left (Css.vw 50) ] ]
                          textBoxesHtml
                      ]
 
@@ -217,33 +220,33 @@ viewTextBox : (ElementId, (TextBoxState, { x : Float, y : Float, width : Float, 
 viewTextBox (k, (state, data)) =
 
     let dragIcon = div [ css [ Tw.text_white, Tw.cursor_move
-                             , Css.width (pct 86), Css.height (pct 86) ] ] 
+                             , Css.width (Css.pct 86), Css.height (Css.pct 86) ] ] 
                        [ FeatherIcons.move 
                        |> FeatherIcons.withSize 100
                        |> FeatherIcons.withSizeUnit "%"
-                       |> FeatherIcons.toHtml [] |> fromUnstyled ]
+                       |> FeatherIcons.toHtml [] |> Html.Styled.fromUnstyled ]
 
         dragBox = div [ css <| [ Tw.flex, Tw.justify_center, Tw.items_center
-                               , Css.width (px 20), Css.height (px 20) ]
+                               , Css.width (Css.px 20), Css.height (Css.px 20) ]
                                ++ (case state of
                                        EditState (Drag _) -> [ Tw.bg_red_500 ]
-                                       _ -> [ Tw.bg_black, hover [ Tw.bg_red_700 ] ] )
+                                       _ -> [ Tw.bg_black, Css.hover [ Tw.bg_red_700 ] ] )
                       ] [ dragIcon ]
 
         -- invisible selector that's a bit bigger than the icon itself
         dragWidgetCss = [ Tw.absolute, Tw.flex, Tw.justify_center, Tw.items_center
                         , Tw.bg_transparent, Tw.cursor_move
-                        , Css.top (px -20), Css.left (px -20)
-                        , Css.width (px 40), Css.height (px 40)
-                        , Css.zIndex (int 10) ]
+                        , Css.top (Css.px -20), Css.left (Css.px -20)
+                        , Css.width (Css.px 40), Css.height (Css.px 40)
+                        , Css.zIndex (Css.int 10) ]
 
         dragWidget = div [ css dragWidgetCss
-                         , onMouseDown (SelectBox (DragStart k))
-                         , onMouseUp (SelectBox (DragStop k))] [ dragBox ]
+                         , Events.onMouseDown (SelectBox (DragStart k))
+                         , Events.onMouseUp (SelectBox (DragStop k))] [ dragBox ]
 
-    in let style = css <| [ Tw.absolute, Css.width (px data.width), Css.left (px data.x), Css.top (px data.y)] 
+    in let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.left (Css.px data.x), Css.top (Css.px data.y)] 
                  ++ case state of
-                      ViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (hex "00000000"), Tw.p_4 ]
+                      ViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.p_4 ]
                       EditState _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.p_4 ]
 
            contents = List.map viewTextBlock data.data 
@@ -251,7 +254,7 @@ viewTextBox (k, (state, data)) =
                                     ViewState -> []
                                     EditState _ -> [ dragWidget ])
 
-    in div [ style, onClick (SelectBox (Select k)) ] contents
+    in div [ style, Events.onClick (SelectBox (Select k)) ] contents
 
 
 
@@ -289,14 +292,14 @@ viewTextBlock block =
                                   , Attributes.alt alt 
                                   , css [ Tw.w_full ] ] []
 
-        VerticalSpace -> div [ css [ Css.height (px 20) ] ] []
+        VerticalSpace -> div [ css [ Css.height (Css.px 20) ] ] []
 
         HorizontalRule -> hr [] []
 
 
 viewTextChunk : TextChunk -> Html Msg
 viewTextChunk chunk = case chunk of
-    Link { title, url }      -> a [ href url ] <| List.map viewTextChunk title
+    Link { title, url }      -> a [ Attributes.href url ] <| List.map viewTextChunk title
     Code { text }            -> code [] [ Html.Styled.text text ]
     Bold { chunks }          -> b [] <| List.map viewTextChunk chunks
     Italic { chunks }        -> i [] <| List.map viewTextChunk chunks
@@ -341,7 +344,7 @@ subscriptions _ =
 
 
 main : Program () Model Msg
-main = Browser.element { init = init, update = update, view = view >> toUnstyled, subscriptions = subscriptions }
+main = Browser.element { init = init, update = update, view = view >> Html.Styled.toUnstyled, subscriptions = subscriptions }
 
 ----------------------------------- util junk ----------------------------------
 
