@@ -42,6 +42,7 @@ pub enum TextBlock {
     UnorderedList { items: Vec<TextBlock> },
     OrderedList { items: Vec<TextBlock> },
     BlockQuote { inner: Vec<TextBlock> },
+    Image { url: String, alt: String },
     VerticalSpace,
     HorizontalRule,
 }
@@ -66,6 +67,18 @@ pub struct DocumentUpdate {
 }
 
 // -----------------------------------------------------------------------------
+//
+// General model: FooPrecursor will *usually* be a struct with a bunch of metadata, and a reference
+// to the underlying data. Scanning through the document will produce a bunch of Precursors, but
+// won't really do many copies or mutations on the actual data.
+//
+// After some "phase" of processing has separated out a bunch of FooPrecursors, I'll convert them
+// into Foos, which are the final type actually synced with the Elm app. This is where most copying
+// and mutation of underlying data will happen.
+//
+// This is very much not a hard and fast rule, but I feel like it's a nice mental separation of
+// concerns.
+
 
 #[derive(Hash, Debug)]
 struct ElementPrecursor {
@@ -84,6 +97,8 @@ enum TextBlockPrecursor<'a> {
     OrderedList { items: Vec<TextBlockPrecursor<'a>> },
 
     BlockQuote { inner: Vec<TextBlock> },
+
+    Image { url: String, alt: String },
 
     // With the List type elements, it's possible to parse their contents purely on the original
     // text buffer - hence their array is also of Precursors. Less so for blockquotes - I need to
@@ -144,6 +159,8 @@ lazy_static! {
 
     static ref BLOCKQUOTE_REGEX: Regex = Regex::new(r"^(?:\s*)>(.*)").unwrap();
 
+    static ref IMAGE_REGEX: Regex = Regex::new(r"^(?:\s*)!\[(.*)\]\((.*)\)").unwrap();
+
     // For italics, I have a regex that will match a single asterisk, only if
     // there's not a second asterisk right after it.
     static ref ITALIC_REGEX: Regex = Regex::new(r"(?:^|[^\*])(\*)(?:[^\*]|$)").unwrap();
@@ -159,6 +176,7 @@ pub fn parse(text: &str) -> Document {
     // TODO: when missing, parse parameters to a default value
 
     // first pass: scan through and mark out the boundaries of each element, and save all metadata info
+
     let mut element_precursors: Vec<ElementPrecursor> = Vec::new();
 
     for (i, line) in text.lines().enumerate() {
@@ -286,6 +304,7 @@ fn parse_text_blocks(text: &str) -> Vec<TextBlock> {
             TextBlockPrecursor::UnorderedList { items } => Some(TextBlock::UnorderedList { items: items.into_iter().filter_map(|x| convert_precursor(x)).collect() }),
             TextBlockPrecursor::OrderedList { items } => Some(TextBlock::OrderedList { items: items.into_iter().filter_map(|x| convert_precursor(x)).collect() }),
             TextBlockPrecursor::BlockQuote { inner } => Some(TextBlock::BlockQuote { inner }),
+            TextBlockPrecursor::Image { url, alt } => Some(TextBlock::Image { url, alt }),
             TextBlockPrecursor::VerticalSpace => Some(TextBlock::VerticalSpace),
             TextBlockPrecursor::HorizontalRule => Some(TextBlock::HorizontalRule),
             TextBlockPrecursor::SpacelessBreak => None,
@@ -396,19 +415,22 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
         }
 
         if blockquote_contents.len() > 0 {
-            println!("blockquote_contents: {}", blockquote_contents);
-            
             blocks.push( TextBlockPrecursor::BlockQuote {
                 inner: parse_text_blocks(&blockquote_contents)
             } );
             continue;
-        } else {
-            println!("no blockquote");
         }
 
+        // try to parse an image -----------------------------------------------
 
-
-
+        if let Some(captures) = IMAGE_REGEX.captures(text) {
+            blocks.push(TextBlockPrecursor::Image {
+                alt: captures[1].to_string(),
+                url: captures[2].to_string(),
+            });
+            text = &text[captures[0].len()..];
+            continue;
+        }
 
         // parse either a vertical space or a paragraph ------------------------
 

@@ -57,8 +57,9 @@
             - [x] Unordered
             - [x] Ordered
         - [x] Blockquotes
-        - [ ] Images: Web
-        - [ ] Images: Local
+        - [x] Images
+            - [x] Web Links
+            - [ ] Local Files
         - [ ] Tables
 
     - [x] Display it
@@ -87,6 +88,9 @@
 - [x] <br> breaks
 - [x] ~~strikethrough~~
 - [x] don't select text when dragging
+- [ ] More arbitrary zooming
+    - [ ] Create a sample project where I can zoom in and out and move stuff around infinitely on a canvas containing a div
+    - [ ] Swap dungeon note over to this model
 - [ ] fix styling on links
 - [ ] Re-add menu bar
 - [ ] Lines

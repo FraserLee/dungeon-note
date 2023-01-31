@@ -285,6 +285,10 @@ viewTextBlock block =
 
         BlockQuote { inner } -> blockquote [] (List.map viewTextBlock inner)
 
+        Image { url, alt } -> img [ Attributes.src url
+                                  , Attributes.alt alt 
+                                  , css [ Tw.w_full ] ] []
+
         VerticalSpace -> div [ css [ Css.height (px 20) ] ] []
 
         HorizontalRule -> hr [] []

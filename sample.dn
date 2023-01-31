@@ -136,5 +136,5 @@ as should this:
 Links should be [able to contain *inline* ~~styles~~ and `code`](http://example.com).
 
 The following should be an image
-![image](http://example.com/image.png)
+![image](https://github.com/FraserLee/dotfiles/blob/master/test.jpeg?raw=true)
 
