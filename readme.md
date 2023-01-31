@@ -69,10 +69,10 @@
 
 - [x] Stop regenerating regex unnecessarily
 
-- [ ] Save Changes back to file when they're made
+- [x] Save Changes back to file when they're made
     - [x] Successfully write back to file
     - [x] Keep order stable
-    - [ ] Don't trigger a reload when writing
+    - [x] Don't trigger a reload when writing
 
 - [ ] Polish Readme
 

@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 use std::convert::Infallible;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use std::fs::File;
 use std::io::prelude::*;
 
@@ -32,7 +32,14 @@ lazy_static! {
     //
     // https://gist.github.com/FraserLee/b75d88642827c5e0f49c0b8d96ad848e
 
+    // set true by the file watcher thread, then set false by the main thread after
+    // sending an SSE to the client telling it to refresh
     static ref DOCUMENT_REFRESHED: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+
+    // set to the current time (plus some small buffer) when writing to the 
+    // file. Only trigger a file watcher event if the current time is greater
+    // than this value.
+    static ref WATCH_BLOCK_CHECK: Arc<Mutex<SystemTime>> = Arc::new(Mutex::new(SystemTime::UNIX_EPOCH));
 }
 
 
@@ -58,14 +65,22 @@ fn load_document() {
 
 fn save_document() {
     let document = DOCUMENT.lock().unwrap();
+    let mut watch_block_check = WATCH_BLOCK_CHECK.lock().unwrap();
 
-    // set time to c+99999
+    // set WATCH_BLOCK_CHECK to current + 10 seconds, in case writing takes a bit of time. 
+    *watch_block_check = SystemTime::now() + Duration::from_secs(10);
+    // I think the fact that we're unlocking the mutex at the start of this 
+    // method *should* mean we're blocking it anyways, so this is unnecessary,
+    // but I'm not confident that the order of operations is guaranteed to be stable.
+
     let mut file = File::create(&*DOC_PATH).unwrap();
 
     document.elements.values().for_each(|element| {
         file.write(element.write_repr().as_bytes()).unwrap();
     });
-    // set time to c+1
+
+    // set WATCH_BLOCK_CHECK to current + 1 second
+    *watch_block_check = SystemTime::now() + Duration::from_secs(1);
 }
 
 
@@ -94,7 +109,7 @@ async fn main() {
 
     // -- watch file, reload on change -----------------------------------------
 
-    load_document();
+    load_document(); // load it once at the start
 
     std::thread::spawn(|| {
 
@@ -111,12 +126,14 @@ async fn main() {
         loop {
             match rx.recv() {
                 Ok(_) => {
+
+                    let watch_block_check = WATCH_BLOCK_CHECK.lock().unwrap();
+                    if SystemTime::now() < *watch_block_check { continue; }
+
                     load_document();
                     *DOCUMENT_REFRESHED.lock().unwrap() = true;
                 }
-                Err(e) => {
-                    println!("watch error: {:?}", e);
-                }
+                Err(e) => { println!("watch error: {:?}", e); }
             }
         }
     });
