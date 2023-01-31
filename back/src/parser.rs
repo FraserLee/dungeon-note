@@ -1,5 +1,5 @@
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 use std::time::SystemTime;
 
@@ -14,12 +14,12 @@ use regex::Regex;
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
 pub struct Document {
-    pub elements: HashMap<String, Element>,
+    pub elements: BTreeMap<String, Element>,
     pub created: u64,
 }
 impl Document {
     pub fn new() -> Self { Self {
-            elements: HashMap::new(),
+            elements: BTreeMap::new(),
             created: SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
@@ -29,9 +29,38 @@ impl Document {
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
 pub enum Element {
-    TextBox { x: f64, y: f64, width: f64, data: Vec<TextBlock>, },
-    Rect    { x: f64, y: f64, width: f64, height: f64, z: f64, color: String, },
     Line    { x1: f64, y1: f64, x2: f64, y2: f64, },
+    Rect    { x: f64, y: f64, width: f64, height: f64, z: f64, color: String, },
+    TextBox { x: f64, y: f64, width: f64,
+
+        data: Vec<TextBlock>, // data is the parsed contents of the text box
+
+        #[serde(skip)]
+        raw_content: String, // raw content is the original text, to allow me to
+                             // save it back to the file without regenerating it
+                             // from a probably lossy form.
+    },
+}
+
+impl Element {
+    pub fn write_repr(&self) -> String {
+
+        // !!!!Text!x:-55.0!y:30.0!width:700.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        match self {
+            Element::Line { x1, y1, x2, y2 } => 
+                format!("{:!<80}", format!("!!!!Line!x1:{:.1}!y1:{:.1}!x2:{:.1}!y2:{:.1}", x1, y1, x2, y2)),
+
+            Element::Rect { x, y, width, height, z, color } =>
+                format!("{:!<80}", 
+                    format!("!!!!Rect!x:{:.1}!y:{:.1}!width:{:.1}!height:{:.1}!z:{:.1}!color:{}",
+                            x, y, width, height, z, color)
+                    ),
+
+            Element::TextBox { x, y, width, data: _, raw_content } =>
+                format!("{:!<80}\n{}", format!("!!!!Text!x:{:.1}!y:{:.1}!width:{:.1}", x, y, width), raw_content),
+
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
@@ -203,11 +232,12 @@ pub fn parse(text: &str) -> Document {
     element_precursors[l - 1].endline = text.lines().count();
 
     // now we have all the elements, we can parse the contents of each and add them to the document
-    for precursor in element_precursors {
+    for (i, precursor) in element_precursors.iter().enumerate() {
 
         let text = text.lines()
             .skip(precursor.startline + 1)
             .take(precursor.endline - precursor.startline)
+            .chain(std::iter::once(""))
             .collect::<Vec<&str>>()
             .join("\n");
 
@@ -215,15 +245,18 @@ pub fn parse(text: &str) -> Document {
         let mut hasher = DefaultHasher::new();
         precursor.hash(&mut hasher);
         let hash = hasher.finish();
+        let key = format!("{}_{:x}", i, hash);
 
         let element = Element::TextBox {
             x: precursor.fields[1].parse().unwrap(),
             y: precursor.fields[2].parse().unwrap(),
             width: precursor.fields[3].parse().unwrap(),
             data: parse_text_blocks(&text),
+
+            raw_content: text,
         };
 
-        document.elements.insert(hash.to_string(), element);
+        document.elements.insert(key, element);
     }
 
     document

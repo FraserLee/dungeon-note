@@ -10,6 +10,8 @@ use std::convert::Infallible;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use std::fs::File;
+use std::io::prelude::*;
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -45,18 +47,26 @@ fn load_document() {
 
     *document = parsed;
 
+    // for (key, element) in document.elements.iter() {
+    //     if let Element::TextBox { raw_content, .. } = element {
+    //         println!("{}: {}", key, raw_content[0..100.min(raw_content.len())].replace("\n", "\\n"));
+    //     }
+    // }
+
     println!("Loaded from disk: {}", &*DOC_PATH);
 }
 
-// fn save_document() { // todo: this too
-//     let document = DOCUMENT.lock().unwrap();
-//
-//     let text = document.get("foo").unwrap().text.clone();
-//
-//     std::fs::write(&*DOC_PATH, text).unwrap();
-//
-//     println!("Saved to disk: {}", &*DOC_PATH);
-// }
+fn save_document() {
+    let document = DOCUMENT.lock().unwrap();
+
+    // set time to c+99999
+    let mut file = File::create(&*DOC_PATH).unwrap();
+
+    document.elements.values().for_each(|element| {
+        file.write(element.write_repr().as_bytes()).unwrap();
+    });
+    // set time to c+1
+}
 
 
 
@@ -69,7 +79,7 @@ async fn main() {
     // if the first argument is "--rebuild_shared_types", then just build shared types and exit
     if std::env::args().nth(1) == Some("--rebuild_shared_types".to_string()) {
 
-        let mut target = std::fs::File::create(
+        let mut target = File::create(
             env!("CARGO_MANIFEST_DIR").replace("back", "front/src/Bindings.elm"),
         ).unwrap();
 
@@ -125,15 +135,38 @@ async fn main() {
     let update = warp::path!("update" / String).and(warp::body::json()).map(
         |key: String, update: DocumentUpdate| {
 
-            let mut document = DOCUMENT.lock().unwrap();
+            {
+                let mut document = DOCUMENT.lock().unwrap();
 
-            if document.created > update.doc_created {
-                println!("Ignoring stale update");
-                return warp::reply();
+                if document.created > update.doc_created {
+                    println!("Ignoring stale update");
+                    return warp::reply();
+                }
+
+                print!("updating: {}...", key);
+
+                // if we're updating an already existing element from Element::TextBox to Element::TextBox,
+                // then keep the raw_content field the same (while replacing everything else).
+                // Otherwise, just replace the whole element.
+
+                let new_element = // weirdly hard to make this code better, yada yada borrow checker
+                    if let Some(Element::TextBox { raw_content, .. }) = document.elements.get(&key) {
+                        if let Element::TextBox { x, y, width, data, raw_content: _ } = update.element {
+                            Element::TextBox { x, y, width, data, raw_content: raw_content.clone() }
+                        } else {
+                            update.element
+                        }
+                    } else {
+                        update.element
+                    };
+
+                document.elements.insert(key, new_element);
             }
 
-            println!("updating: {}", key);
-            document.elements.insert(key, update.element);
+            save_document();
+            
+            println!("done");
+            
             warp::reply()
     } );
 
