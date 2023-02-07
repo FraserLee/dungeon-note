@@ -79,7 +79,7 @@ loadAnchorPos = getElement "anchor-div"
        |> Task.attempt (\res -> case res of
             Ok ap -> ap
             Err er ->
-                let _ = Debug.log "Failed to load anchor position" er in
+                -- let _ = Debug.log "Failed to load anchor position" er in
                 SetAnchorPos { x = 0, y = 0 })
 
 
@@ -144,7 +144,7 @@ update msg model =
         ------------------------------- selection ------------------------------
 
         (Loaded (doc, volatile), SelectBox selectMode) ->
-            let _ = Debug.log "select:" selectMode in
+            -- let _ = Debug.log "select:" selectMode in
             let target = case selectMode of
                     Select id -> id
                     DragStart id -> id
@@ -196,7 +196,8 @@ update msg model =
 view : Model -> Html Msg
 view model =
     case model of
-        Failed err -> text ("Failed to load data: " ++ (Debug.toString err))
+        -- Failed err -> text ("Failed to load data: " ++ (Debug.toString err))
+        Failed err -> text "Failed to load data."
 
         Loading -> 
             div [ css [ Tw.absolute, Tw.inset_0, Tw.flex, Tw.items_center, Tw.justify_center ] ]
@@ -312,7 +313,7 @@ viewTextChunk chunk = case chunk of
 -- be a lot more surgical about it if need comes
 updateElement : Int -> ElementId -> Element -> Cmd Msg
 updateElement docCreated id data =
-    let _ = Debug.log "Push update to server:" (id, data) in
+    -- let _ = Debug.log "Push update to server:" (id, data) in
     let url = "/update/" ++ id
         body = documentUpdateEncoder { id = id, element = data, docCreated = docCreated }
     in Http.post { body = Http.jsonBody body
