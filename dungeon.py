@@ -29,26 +29,26 @@ def build_elm(optimize = False):
     if not os.path.exists('build'): os.mkdir('build')
 
     # copy index.html
-    os.system('cp index.html build/index.html')
+    os.system('cp html/index.html build/index.html')
 
     # build elm stuff
-    os.chdir('front')
+    os.chdir('elm')
     os.system('elm make src/Main.elm --output=../build/elm.js' + (' --optimize' if optimize else ''))
     os.chdir(pwd)
 
 
 def build_rust(optimize = False):
-    os.chdir('back')
+    os.chdir('rust')
     os.system(f'cargo build {"--release" if optimize else ""}')
     os.chdir(pwd)
 
 def build_shared():
-    os.chdir('back')
+    os.chdir('rust')
     os.system('cargo run -- --rebuild_shared_types')
     os.chdir(pwd)
 
 def build_and_run_rust(optimize = False):
-    os.chdir('back')
+    os.chdir('rust')
     os.system(f'cargo run {"--release" if optimize else ""} -- "{file_path}" "{pwd}/build"')
     os.chdir(pwd)
 
@@ -56,7 +56,7 @@ def clean():
     os.system('rm -rf build')
 
 # if we're either in debug mode, or there isn't an existing shared-types file, build it.
-if debug_mode or not os.path.exists('front/src/Bindings.elm'):
+if debug_mode or not os.path.exists('elm/src/Bindings.elm'):
     build_shared()
 
 # if we're either in debug more, or there isn't an existing build, build the front-end

@@ -1,5 +1,4 @@
-front/elm-stuff
-build/
 *.DS_Store
-
-front/src/Bindings.elm
+build/
+elm/elm-stuff
+elm/src/Bindings.elm
