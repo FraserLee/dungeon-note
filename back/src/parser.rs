@@ -150,19 +150,30 @@ enum TextBlockPrecursor<'a> {
     VerticalSpace,
 
     // Every markdown engine I see gets this one wrong. Any time you see n empty lines, I'll insert
-    // n-1 chunks of vertical space (possibly combine for efficiency later?) That way things like:
+    // n-1 chunks of vertical space (possibly combined into one element for efficiency later?) That
+    // way this:
     //
-    //     # title
+    //     # title 
     //     some text
     //
-    // and
+    // will look the same as this:
     //
     //     # title
     //
     //     some text
     //
-    // will both parse to the same thing, but hitting <enter> a bunch of times will make an
-    // appreciable difference if some area looks cramped, or you want to create a visual break.
+    // but this:
+    //
+    //     # title
+    //
+    //
+    //
+    //
+    //     some text
+    //
+    // will have some appreciable visual break between the title and the text. If an area looks too
+    // cramped, you can just hit <enter> a few times without needing to worry about layout or
+    // anything.
 
     HorizontalRule,
 
