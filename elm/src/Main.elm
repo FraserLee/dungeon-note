@@ -53,11 +53,12 @@ type alias VolatileState = { anchorPos : { x : Float, y : Float }
 
 --------------------------------- message types --------------------------------
 
-type SelectMsg = Deselect | Select ElementId | DragStart ElementId | DragStop ElementId
+type ElementMsg_temp = Select | DragStart | DragStop 
 
 type Msg = LoadDocument (Result Http.Error PersistentState)
          | SetAnchorPos { x : Float, y : Float }
-         | SelectBox SelectMsg
+         | ElementMsg (ElementId, ElementMsg_temp)
+         | Deselect
          | MouseMove MousePos
          | Posted (Result Http.Error ()) -- not used, but required by Http.post
          | FileChange
@@ -125,31 +126,36 @@ update msg model =
 
         ------------------------------- selection ------------------------------
 
-        (Loaded (doc, volatiles), SelectBox selectMode) ->
-            -- let _ = Debug.log "select:" selectMode in
-            let target = case selectMode of
-                    Select id -> id
-                    DragStart id -> id
-                    DragStop id -> id
-                    Deselect -> ""
+        (Loaded (doc, volatiles), Deselect) ->
+            -- let _ = Debug.log "deselect" "" in
 
-                -- processBox key (ESText state, data) cs =
-                processBox key (s, d) cs = case (s, d) of 
+            let processBox key (s, d) = case (s, d) of 
+                    (ESText state, TextBox data) -> (ESText ViewState, d)
+                    _ -> (s, d)
+
+                (vElements, dElements) = unzip <| Dict.map processBox (zip volatiles.elements doc.elements)
+
+            in (Loaded ({ doc | elements = dElements }
+                      , { volatiles | elements = vElements }
+               ), Cmd.none)
+
+        (Loaded (doc, volatiles), ElementMsg (target, selectMode)) ->
+            -- let _ = Debug.log "select:" selectMode in
+            let processBox key (s, d) cs = case (s, d) of 
                     (ESText state, TextBox data) ->
-                        if selectMode == Deselect then ((ESText ViewState, d), cs)
-                        else if key /= target then ((s, d), cs)
+                        if key /= target then ((s, d), cs)
                         else case (selectMode, state) of
 
-                            (Select _, ViewState) -> ((ESText (EditState Base), d), cs)
+                            (Select, ViewState) -> ((ESText (EditState Base), d), cs)
 
-                            (DragStart _, EditState Base) ->
+                            (DragStart, EditState Base) ->
                                 ((ESText (EditState (Drag { 
                                     iconMouseOffsetX = volatiles.mousePos.x - data.x - volatiles.anchorPos.x,
                                     iconMouseOffsetY = volatiles.mousePos.y - data.y - volatiles.anchorPos.y
                                 } )), d), cs)
 
                             -- when we stop dragging a box, report its new state back down to the server
-                            (DragStop _, EditState (Drag _)) -> ((ESText (EditState Base), d), (updateElement doc.created key d) :: cs)
+                            (DragStop, EditState (Drag _)) -> ((ESText (EditState Base), d), (updateElement doc.created key d) :: cs)
 
                             _ -> ((s, d), cs)
                     _ -> ((s, d), cs)
@@ -159,8 +165,8 @@ update msg model =
 
                 -- if we're dragging something, don't allow text selection
                 canSelectText = volatiles.canSelectText + case selectMode of
-                    DragStart _ -> 1
-                    DragStop _ -> -1
+                    DragStart -> 1
+                    DragStop -> -1
                     _ -> 0
 
             in (Loaded ({ doc | elements = dElements }
@@ -209,21 +215,21 @@ view model =
                 [ h2 [ css [ Tw.text_center, Tw.opacity_25 ] ] [ text "loading..." ] ]
 
         Loaded (doc, vol) ->
-              let textBoxesHtml = List.map viewElement (Dict.toList <| zip vol.elements doc.elements)
+              let textBoxesHtml = List.map viewElement (Dict.toList <| zip doc.elements vol.elements)
                   textSelection = if vol.canSelectText > 0 then [Tw.select_none] else []
               in div [ css (textSelection ++ [ Tw.top_0, Tw.w_full, Tw.h_screen ]) ]
                      [ div [ Attributes.id "anchor-div", css [ Tw.top_0, Tw.absolute, Css.left (Css.vw 50) ] ]
                          textBoxesHtml
                      ]
 
-viewElement : (ElementId, (ElementState, Element)) -> Html Msg
-viewElement (k, (s, e)) = 
+viewElement : (ElementId, (Element, ElementState)) -> Html Msg
+viewElement (k, (e, s)) = 
     case (s, e) of
-        (ESText state, TextBox data) -> viewTextBox (k, (state, data))
+        (ESText state, TextBox data) -> viewTextBox (k, (data, state))
         _ -> text "todo: handle other element types"
 
-viewTextBox : (ElementId, (TextBoxState, { x : Float, y : Float, width : Float, data : List (TextBlock) })) -> Html Msg
-viewTextBox (k, (state, data)) =
+viewTextBox : (ElementId, ({ x : Float, y : Float, width : Float, data : List (TextBlock) }, TextBoxState)) -> Html Msg
+viewTextBox (k, (data, state)) =
 
     let dragIcon = div [ css [ Tw.text_white, Tw.cursor_move
                              , Css.width (Css.pct 86), Css.height (Css.pct 86) ] ] 
@@ -247,8 +253,8 @@ viewTextBox (k, (state, data)) =
                         , Css.zIndex (Css.int 10) ]
 
         dragWidget = div [ css dragWidgetCss
-                         , Events.onMouseDown (SelectBox (DragStart k))
-                         , Events.onMouseUp (SelectBox (DragStop k))] [ dragBox ]
+                         , Events.onMouseDown (ElementMsg (k, DragStart))
+                         , Events.onMouseUp (ElementMsg (k, DragStop))] [ dragBox ]
 
     in let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.left (Css.px data.x), Css.top (Css.px data.y)] 
                  ++ case state of
@@ -260,7 +266,7 @@ viewTextBox (k, (state, data)) =
                                     ViewState -> []
                                     EditState _ -> [ dragWidget ])
 
-    in div [ style, Events.onClick (SelectBox (Select k)) ] contents
+    in div [ style, Events.onClick (ElementMsg (k, Select)) ] contents
 
 
 
@@ -335,7 +341,7 @@ subscriptions _ =
           ) |> Sub.map MouseMove
 
         -- subscribe to the escape key being pressed (damn this was harder than it should have been)
-        escapeSub = Sub.map SelectBox <| onKeyDown (
+        escapeSub = onKeyDown (
                 Decode.field "key" 
                 Decode.string |> Decode.andThen 
                 (\key -> if key == "Escape" then Decode.succeed Deselect else Decode.fail "wrong key")
