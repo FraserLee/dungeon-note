@@ -77,7 +77,7 @@
 - [x] Assume default values for missing parameters
 - [x] Default text-block if no header starts the document
 
-- [ ] Polish Readme
+- [x] Write Readme
 
 - [ ] Split example file into one focused entirely on markdown, and a second
       more literate one which demonstrates how to structure a document.
@@ -112,6 +112,8 @@
 - [ ] Memoize markdown parsing
 - [ ] Highlight CodeBlocks
 - [ ] Executable CodeBlocks
+    - [ ] once unboxed execution is done, rewrite example to use it so it
+      displays the output and the source markdown code side by side.
 - [ ] Write tests
 - [ ] dynamically adjust pivot so stuff is never offscreen to the left
 - [ ] glorious unified system
