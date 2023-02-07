@@ -43,9 +43,10 @@ type ElementState = ESText TextBoxState
 type TextBoxState = ViewState | EditState TextBoxEditState
 type TextBoxEditState = Base | Drag { iconMouseOffsetX : Float, iconMouseOffsetY : Float }
 
+type alias MousePos = { x : Float, y : Float }
 
 type alias VolatileState = { anchorPos : { x : Float, y : Float }
-                           , mousePos : { x : Float, y : Float }
+                           , mousePos : MousePos
                            , elements : Dict ElementId ElementState
                            , canSelectText : Int -- 0 = yes, 1+ = no
                            }
@@ -54,12 +55,10 @@ type alias VolatileState = { anchorPos : { x : Float, y : Float }
 
 type SelectMsg = Deselect | Select ElementId | DragStart ElementId | DragStop ElementId
 
-type alias MouseMoveMsg = { x : Float, y : Float }
-
 type Msg = LoadDocument (Result Http.Error PersistentState)
          | SetAnchorPos { x : Float, y : Float }
          | SelectBox SelectMsg
-         | MouseMove MouseMoveMsg
+         | MouseMove MousePos
          | Posted (Result Http.Error ()) -- not used, but required by Http.post
          | FileChange
 
@@ -112,38 +111,21 @@ update msg model =
                     _ -> (model, Cmd.none)
 
 
-        -- ------------------------------ mouse move ------------------------------
+        ------------------------------ mouse move ------------------------------
 
-        (Loaded (doc, volatile), MouseMove { x, y }) ->
-            -- let _ = Debug.log "MouseMove:" (x, y) in
+        -- I'm not entirely sure what could invalidate the anchor position
+        -- (definitely window resize, but possibly some other things) so I'll
+        -- just reload it with each mouse move till performance becomes an
+        -- issue
 
-            -- mapAccum : (k -> v -> a -> (v, a)) -> Dict k v -> a -> (Dict k v, a)
-
-            -- if a box is selected and in drag mode, update its position
-            let processBox _ (s, d) = case (s, d) of
-                    (ESText (EditState (Drag { iconMouseOffsetX, iconMouseOffsetY })), TextBox data) ->
-                        let x1 = x - volatile.anchorPos.x - iconMouseOffsetX
-                            y1 = y - volatile.anchorPos.y - iconMouseOffsetY
-                        in (s, TextBox { data | x = x1, y = y1 })
-                    _ -> (s, d)
-
-
-                (vElements, dElements) = unzip <| Dict.map processBox <| zip volatile.elements doc.elements
-
-                doc1 = { doc | elements = dElements }
-                volatiles1 = { volatile | mousePos = { x = x, y = y }, elements = vElements }
-
-            -- I'm not entirely sure what could invalidate the anchor position
-            -- (definitely window resize, but possibly some other things) so
-            -- I'll just reload it with each mouse move till performance
-            -- becomes an issue
-
-            in (Loaded (doc1, volatiles1), loadAnchorPos)
-
+        (Loaded (doc, volatiles), MouseMove p) -> (
+                Loaded <| updateMouseMove p (doc, { volatiles | mousePos = p }),
+                loadAnchorPos
+            )
 
         ------------------------------- selection ------------------------------
 
-        (Loaded (doc, volatile), SelectBox selectMode) ->
+        (Loaded (doc, volatiles), SelectBox selectMode) ->
             -- let _ = Debug.log "select:" selectMode in
             let target = case selectMode of
                     Select id -> id
@@ -162,8 +144,8 @@ update msg model =
 
                             (DragStart _, EditState Base) ->
                                 ((ESText (EditState (Drag { 
-                                    iconMouseOffsetX = volatile.mousePos.x - data.x - volatile.anchorPos.x,
-                                    iconMouseOffsetY = volatile.mousePos.y - data.y - volatile.anchorPos.y
+                                    iconMouseOffsetX = volatiles.mousePos.x - data.x - volatiles.anchorPos.x,
+                                    iconMouseOffsetY = volatiles.mousePos.y - data.y - volatiles.anchorPos.y
                                 } )), d), cs)
 
                             -- when we stop dragging a box, report its new state back down to the server
@@ -172,22 +154,45 @@ update msg model =
                             _ -> ((s, d), cs)
                     _ -> ((s, d), cs)
 
-                (elements, changes) = mapAccum processBox (zip volatile.elements doc.elements) []
+                (elements, changes) = mapAccum processBox (zip volatiles.elements doc.elements) []
                 (vElements, dElements) = unzip elements
 
                 -- if we're dragging something, don't allow text selection
-                canSelectText = volatile.canSelectText + case selectMode of
+                canSelectText = volatiles.canSelectText + case selectMode of
                     DragStart _ -> 1
                     DragStop _ -> -1
                     _ -> 0
 
             in (Loaded ({ doc | elements = dElements }
-                      , { volatile | elements = vElements, canSelectText = canSelectText }
+                      , { volatiles | elements = vElements, canSelectText = canSelectText }
                ), Cmd.batch changes)
 
 
         -- fall-through (just do nothing, probably tried to act while document loading) 
         _ -> (model, Cmd.none)
+
+
+updateMouseMove : MousePos -> (PersistentState, VolatileState) -> (PersistentState, VolatileState)
+updateMouseMove {x, y} (doc, volatiles) =
+            -- let _ = Debug.log "MouseMove:" (x, y) in
+
+            -- mapAccum : (k -> v -> a -> (v, a)) -> Dict k v -> a -> (Dict k v, a)
+
+            -- if a box is selected and in drag mode, update its position
+            let processBox _ (s, d) = case (s, d) of
+                    (ESText (EditState (Drag { iconMouseOffsetX, iconMouseOffsetY })), TextBox data) ->
+                        let x1 = x - volatiles.anchorPos.x - iconMouseOffsetX
+                            y1 = y - volatiles.anchorPos.y - iconMouseOffsetY
+                        in (s, TextBox { data | x = x1, y = y1 })
+                    _ -> (s, d)
+
+
+                (vElements, dElements) = unzip <| Dict.map processBox <| zip volatiles.elements doc.elements
+
+                doc1 = { doc | elements = dElements }
+                volatiles1 = { volatiles | elements = vElements }
+
+            in (doc1, volatiles1)
 
 
 ------------------------------------- view -------------------------------------
@@ -324,22 +329,22 @@ updateElement docCreated id data =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ = 
-    let mouseMove = onMouseMove ( Decode.map2 MouseMoveMsg
+    let mouseMoveSub = onMouseMove ( Decode.map2 MousePos
             (field "pageX" Decode.float)
             (field "pageY" Decode.float)
           ) |> Sub.map MouseMove
 
         -- subscribe to the escape key being pressed (damn this was harder than it should have been)
-        escape = Sub.map SelectBox <| onKeyDown (
+        escapeSub = Sub.map SelectBox <| onKeyDown (
                 Decode.field "key" 
                 Decode.string |> Decode.andThen 
                 (\key -> if key == "Escape" then Decode.succeed Deselect else Decode.fail "wrong key")
             )
 
         -- subscribe to a SSE stream to hear if the file changed
-        file = fileChange (\_ -> FileChange)
+        fileSub = fileChange (\_ -> FileChange)
 
-    in Sub.batch [ mouseMove, escape, file ]
+    in Sub.batch [ mouseMoveSub, escapeSub, fileSub ]
 
 
 main : Program () Model Msg
