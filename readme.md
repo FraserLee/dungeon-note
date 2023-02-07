@@ -77,11 +77,12 @@
 
 - [x] Pull arbitrary parameters in arbitrary order out of header
 - [x] Assume default values for missing parameters
-- [ ] Default text-block if no header starts the document
+- [x] Default text-block if no header starts the document
 
 - [ ] Polish Readme
 
-- [ ] Move all sample features into more literate example file
+- [ ] Split example file into one focused entirely on markdown, and a second
+      more literate one which demonstrates how to structure a document.
 
 - [ ] Further Textbox edit-mode capabilities
     - [ ] Proper left-right position / resize

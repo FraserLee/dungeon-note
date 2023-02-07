@@ -218,6 +218,18 @@ pub fn parse(text: &str) -> Document {
 
     let mut element_precursors: Vec<ElementPrecursor> = Vec::new();
 
+    // if the first line doesn't start with "!!!", then we'll assume there's a text element with
+    // otherwise default properties for all the content before the first element header.
+
+    if !text.starts_with("!!!") {
+        element_precursors.push(ElementPrecursor {
+            startline: 0,
+            endline: 0,
+            type_: "text".to_string(),
+            properties: BTreeMap::new(),
+        });
+    }
+
     for (i, line) in text.lines().enumerate() {
         if let Some(caps) = ELEMENT_HEADER_REGEX.captures(line) {
 
@@ -244,8 +256,8 @@ pub fn parse(text: &str) -> Document {
             let precursor = ElementPrecursor {
                 type_,
                 properties,
-                startline: i,
-                endline: i,
+                startline: i + 1,
+                endline: 0,
             };
 
             element_precursors.push(precursor);
@@ -256,12 +268,17 @@ pub fn parse(text: &str) -> Document {
     let l = element_precursors.len();
     element_precursors[l - 1].endline = text.lines().count();
 
+
+
+
     // now we have all the elements, we can parse the contents of each and add them to the document
+
+
     for (i, precursor) in element_precursors.iter().enumerate() {
 
         let text = text.lines()
-            .skip(precursor.startline + 1)
-            .take(precursor.endline - precursor.startline)
+            .skip(precursor.startline)
+            .take(precursor.endline - precursor.startline + 1)
             .chain(std::iter::once(""))
             .collect::<Vec<&str>>()
             .join("\n");
