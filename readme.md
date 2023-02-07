@@ -9,6 +9,11 @@ preferred text editor.
 Optimized for zero friction, and a note taking experience as expressive as
 paper.
 
+## Warning
+
+I'll delete this warning when things are somewhat more stable, but for the
+moment this isn't anywhere close to done. 
+
 ## Installation
 
 I'm planning on publishing this to some sort of package manager. For now,
