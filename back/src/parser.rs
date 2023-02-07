@@ -113,7 +113,8 @@ pub struct DocumentUpdate {
 struct ElementPrecursor {
     startline: usize,
     endline: usize,
-    fields: Vec<String>,
+    type_: String,
+    properties: BTreeMap<String, String>,
 }
 
 #[derive(Debug)]
@@ -178,7 +179,8 @@ lazy_static! {
 
     // a element header will look like this:
     // !!!!Text!x:370.0!y:150.0!width:300.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    static ref ELEMENT_HEADER_REGEX: Regex = Regex::new(r"^!!(?:!+)(Text)!x:(-?\d+(?:\.\d)?)!y:(-?\d+(?:\.\d)?)!width:(-?\d+(?:\.\d)?)!!!").unwrap();
+    static ref ELEMENT_HEADER_REGEX: Regex = Regex::new(r"(?i)^!!!+(text|line|rect)(?:!+\w+:[^!]+)*!!!+\s*$").unwrap();
+    static ref ELEMENT_PROPERTY_REGEX: Regex = Regex::new(r"!+(\w+):([^!]+)").unwrap();
 
     // matches numbers, but also some simple roman numerals. The choice of
     // which you use doesn't actually effect the output (yet, look into this)
@@ -201,9 +203,6 @@ lazy_static! {
 pub fn parse(text: &str) -> Document {
     let mut document = Document::new();
 
-    // TODO: grab parameters in any order
-    // TODO: when missing, parse parameters to a default value
-
     // first pass: scan through and mark out the boundaries of each element, and save all metadata info
 
     let mut element_precursors: Vec<ElementPrecursor> = Vec::new();
@@ -211,20 +210,35 @@ pub fn parse(text: &str) -> Document {
     for (i, line) in text.lines().enumerate() {
         if let Some(caps) = ELEMENT_HEADER_REGEX.captures(line) {
 
+            // first, close off the previous element.
             let l = element_precursors.len();
+            if l > 0 { element_precursors[l - 1].endline = i - 1; }
 
-            if l > 0 {
-                element_precursors[l - 1].endline = i - 1;
+            // type_ will be one of "text", "line", or "rect"
+            let type_ = caps.get(1).unwrap().as_str().to_string().to_lowercase();
+
+            // properties will be a Map of key/value pairs, things like "width" : "750.0"
+            let mut properties = BTreeMap::new();
+
+            let mut line = caps.get(0).unwrap().as_str();
+
+            while let Some(caps) = ELEMENT_PROPERTY_REGEX.captures(line) {
+                let key = caps.get(1).unwrap().as_str().to_string().to_lowercase();
+                let value = caps.get(2).unwrap().as_str().to_string();
+                properties.insert(key, value);
+                line = &line[caps.get(0).unwrap().end()..];
             }
 
-            let fields = caps.iter()
-                .skip(1)
-                .map(|x| x.unwrap().as_str().to_string())
-                .collect();
 
-            let precursor = ElementPrecursor { fields, startline: i, endline: i, };
+            let precursor = ElementPrecursor {
+                type_,
+                properties,
+                startline: i,
+                endline: i,
+            };
 
             element_precursors.push(precursor);
+
         }
     }
 
@@ -247,15 +261,53 @@ pub fn parse(text: &str) -> Document {
         let hash = hasher.finish();
         let key = format!("{}_{:x}", i, hash);
 
-        let element = Element::TextBox {
-            x: precursor.fields[1].parse().unwrap(),
-            y: precursor.fields[2].parse().unwrap(),
-            width: precursor.fields[3].parse().unwrap(),
-            data: parse_text_blocks(&text),
-
-            raw_content: text,
+        let parse_float = |name: &str, default: Option<f64>| -> f64 {
+            if let Some(value) = precursor.properties.get(name) {
+                value.parse().expect(format!("invalid {} value: {}", name, value).as_str())
+            } else { match default {
+                Some(value) => value,
+                None => panic!("unable to find {} value", name),
+            }}
         };
 
+        let parse_string = |name: &str, default: Option<String>| -> String {
+            if let Some(value) = precursor.properties.get(name) {
+                value.to_string()
+            } else { match default {
+                Some(value) => value,
+                None => panic!("unable to find {} value", name),
+            }}
+        };
+
+        // depending on the type of element, we'll parse it differently
+        let element = match precursor.type_.as_str() {
+            "text" => Element::TextBox {
+                x: parse_float("x", Some(-350.0)),
+                y: parse_float("y", Some(30.0)),
+                width: parse_float("width", Some(700.0)),
+                data: parse_text_blocks(&text),
+                raw_content: text.clone(),
+            },
+
+            "line" => Element::Line {
+                x1: parse_float("x1", None),
+                y1: parse_float("y1", None),
+                x2: parse_float("x2", None),
+                y2: parse_float("y2", None),
+            },
+
+            "rect" | "rectangle" => Element::Rect {
+                x: parse_float("x", Some(-400.0)),
+                y: parse_float("y", Some(0.0)),
+                width: parse_float("width", Some(800.0)),
+                height: parse_float("height", Some(600.0)),
+                z: parse_float("z", Some(-1.0)),
+                color: parse_string("color", Some("#00827c".to_string())),
+            },
+
+            _ => panic!("unknown element type: {}", precursor.type_),
+        };
+    
         document.elements.insert(key, element);
     }
 

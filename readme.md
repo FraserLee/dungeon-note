@@ -75,6 +75,10 @@
     - [x] Keep order stable
     - [x] Don't trigger a reload when writing
 
+- [x] Pull arbitrary parameters in arbitrary order out of header
+- [x] Assume default values for missing parameters
+- [ ] Default text-block if no header starts the document
+
 - [ ] Polish Readme
 
 - [ ] Move all sample features into more literate example file

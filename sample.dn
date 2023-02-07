@@ -54,7 +54,9 @@ At the point it finds something the original `return` is immediately called -
 without having to jump back through the stack frames of the inner matches, nor
 examine the results of the previous recursive calls.
 
-!!!!Text!x:-600.0!y:30!width:500.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!TEXT!!!!!!!!!!!!!y:5000!!!!!!!!!!!!!!!!!!!!
+*this text should be wayyyyy at the bottom of the page.*
+!!!!Text!x:-600.0!y:60!width:500.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 This paragraph should have zero vertical space between it and the start of the
 element. The next paragraph should have no additional vertical space between it
