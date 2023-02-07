@@ -1,5 +1,3 @@
-# Todo: write readme
-
 - [x] Python <-> Locally hosted webpage
 - [x] Send forwards json full of dummy textboxes
 - [x] Render that on the page
