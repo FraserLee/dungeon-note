@@ -28,8 +28,8 @@ def build_elm(optimize = False):
     # create folder
     if not os.path.exists('build'): os.mkdir('build')
 
-    # copy index.html
-    os.system('cp html/index.html build/index.html')
+    # copy index.html, css, etc
+    os.system('cp html/* build/')
 
     # build elm stuff
     os.chdir('elm')
