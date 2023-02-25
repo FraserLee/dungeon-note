@@ -19,7 +19,7 @@
       }
 
       fileChangeSource.onerror = (event) => {
-          app.ports.sseError.send("");
+          app.ports.sseError.send("desync from server.");
       }
   </script>
 </body>

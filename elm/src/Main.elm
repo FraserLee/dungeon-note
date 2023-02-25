@@ -34,7 +34,7 @@ port sseError : (String -> msg) -> Sub msg
 
 type Model = Loading 
            | Loaded (PersistentState, VolatileState)
-           | Desync PersistentState -- holds the last known good state
+           | Desync String PersistentState -- holds the last known good state
            | Failed Http.Error
 
 type alias PersistentState = Document
@@ -54,7 +54,7 @@ type Msg = LoadDocument (Result Http.Error PersistentState)
          | MouseMove MousePos -- fired when the mouse moves
          | Posted (Result Http.Error ()) -- not used, but required by Http.post
          | FileChange
-         | SSEError
+         | SSEError String
          | Reload -- reload the page itself
 
 init : () -> (Model, Cmd Msg)
@@ -102,8 +102,8 @@ update msg model =
         -- reload data on hearing that the file has changed
         (_, FileChange) -> (Loading, fetchData)
 
-        (_, SSEError) -> case model of
-            Loaded (data, volatiles) -> (Desync data, Cmd.none)
+        (_, SSEError message) -> case model of
+            Loaded (data, volatiles) -> (Desync message data, Cmd.none)
             _ -> (model, Cmd.none)
 
         (_, SetAnchorPos pos) -> 
@@ -198,7 +198,7 @@ view model =
         -- Failed err -> text ("Failed to load data: " ++ (Debug.toString err))
         Failed err -> text "Failed to load data."
 
-        Desync doc ->
+        Desync message doc ->
             let baseHtml = Loaded (doc, initVolatileState doc) |> view
 
                 baseHtmlDark = div [ ]
@@ -211,7 +211,7 @@ view model =
                              ] [ div [ css [ Tw.font_bold ] ] [ text "reload" ] ]
 
                 reload = div [ css [ Tw.absolute, Tw.inset_0, Tw.flex, Tw.flex_col, Tw.items_center, Tw.justify_center, Tw.z_50 ] ]
-                            [ h2 [ css [ Tw.text_xl ] ] [ text "desync from server. " ], button ]
+                            [ h2 [ css [ Tw.text_xl ] ] [ text message ], button ]
 
             in div []
                    [ reload
@@ -263,7 +263,7 @@ subscriptions _ =
         -- subscribe to a SSE stream to hear if the file changed
         fileSub = fileChange (\_ -> FileChange)
 
-        sseErrorSub = sseError (\_ -> SSEError)
+        sseErrorSub = sseError (\s -> SSEError s)
 
     in Sub.batch [ mouseMoveSub, escapeSub, fileSub, sseErrorSub ]
 
