@@ -52,7 +52,7 @@ type Msg = LoadDocument (Result Http.Error PersistentState)
          | ElementMsg (ElementId, Element.Msg)
          | Deselect -- deselect all elements. <esc> key + when clicking on background (todo)
          | MouseMove MousePos -- fired when the mouse moves
-         | Posted (Result Http.Error ()) -- not used, but required by Http.post
+         | Posted (Result Http.Error ())
          | FileChange
          | SSEError String
          | Reload -- reload the page itself
@@ -102,6 +102,18 @@ update msg model =
         -- reload data on hearing that the file has changed
         (_, FileChange) -> (Loading, fetchData)
 
+        -- throw up a desync prompt if we get an error back on post. We don't
+        -- just want to silently re-fetch data here, as this probably means the
+        -- SSE stream is pointing to the wrong page (human accidentally opened
+        -- multiple) and we want to properly reload.
+        (_, Posted (Ok _)) -> (model, Cmd.none)
+        (_, Posted (Err err)) -> case model of
+            Loaded (data, volatiles) -> (Desync "stale document" data, Cmd.none)
+            _ -> (model, Cmd.none)
+
+        -- if we get an SSE Error, throw up a desync message and a reload button.
+        -- Usually this one means the laptop fell asleep, or browser timed out,
+        -- or maybe the server restarted.
         (_, SSEError message) -> case model of
             Loaded (data, volatiles) -> (Desync message data, Cmd.none)
             _ -> (model, Cmd.none)

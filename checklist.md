@@ -79,11 +79,11 @@
 
 - [x] Write Readme
 
-- [ ] communicate when desync happens
+- [x] communicate when desync happens
     - [x] when not connected to sse
-    - [ ] when document date is newer than local date
-        - [ ] provide error state from rust
-        - [ ] receive error state in elm
+    - [x] when document date is newer than local date
+        - [x] provide error state from rust
+        - [x] receive error state in elm
     - [x] overlay with reload button
 
 - [ ] Split example file into one focused entirely on markdown, and a second

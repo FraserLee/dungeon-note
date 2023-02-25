@@ -157,7 +157,7 @@ async fn main() {
 
                 if document.created > update.doc_created {
                     println!("Ignoring stale update");
-                    return warp::reply();
+                    return warp::reply::with_status(warp::reply(), warp::http::StatusCode::NOT_MODIFIED);
                 }
 
                 print!("updating: {}...", key);
@@ -184,7 +184,7 @@ async fn main() {
             
             println!("done");
             
-            warp::reply()
+            warp::reply::with_status(warp::reply(), warp::http::StatusCode::OK)
     } );
 
     // simple SSE event
