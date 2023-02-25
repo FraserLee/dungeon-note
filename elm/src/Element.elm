@@ -19,9 +19,11 @@ import Css
 
 type alias ElementId = String
 
-type ElementState = ESText TextBoxState
-type TextBoxState = ViewState | EditState TextBoxEditState
+type ElementState = ESText TextBoxState | ESRect RectState
+type TextBoxState = TViewState | TEditState TextBoxEditState
 type TextBoxEditState = Base | Drag { iconMouseOffsetX : Float, iconMouseOffsetY : Float }
+
+type RectState = RViewState -- | EditState RectEditState
 
 type Msg = Select | DragStart | DragStop 
 
@@ -29,9 +31,9 @@ type Msg = Select | DragStart | DragStop
 
 initState : Element -> ElementState
 initState element = case element of
-    TextBox _ -> ESText ViewState
-    Line _ -> ESText ViewState
-    Rect _ -> ESText ViewState
+    TextBox _ -> ESText TViewState
+    Line _ -> ESText TViewState
+    Rect _ -> ESRect RViewState
 
 --------------------------------- update logic ---------------------------------
 
@@ -40,12 +42,13 @@ initState element = case element of
 
 deselect : (Element, ElementState) -> (Element, ElementState)
 deselect (data, state) = case state of
-        ESText _ -> (data, ESText ViewState)
+        ESText _ -> (data, ESText TViewState)
+        ESRect _ -> (data, ESRect RViewState)
 
 -- if a box is selected and in drag mode, update its position
 mousemove : MousePos -> AnchorPos -> (Element, ElementState) -> (Element, ElementState)
 mousemove {x, y} anchorPos (data, state) = case (data, state) of
-    (TextBox d, ESText (EditState (Drag { iconMouseOffsetX, iconMouseOffsetY }))) ->
+    (TextBox d, ESText (TEditState (Drag { iconMouseOffsetX, iconMouseOffsetY }))) ->
         let x1 = x - anchorPos.x - iconMouseOffsetX
             y1 = y - anchorPos.y - iconMouseOffsetY
         in (TextBox { d | x = x1, y = y1 }, state)
@@ -59,16 +62,16 @@ update : MousePos -> AnchorPos -> Msg -> (Element, ElementState) -> ((Element, E
 update mousePos anchorPos msg (data, state) = case (data, state) of
     (TextBox d, ESText s) -> case (msg, s) of
 
-        (Select, ViewState) -> ((data, ESText (EditState Base)), False)
+        (Select, TViewState) -> ((data, ESText (TEditState Base)), False)
 
-        (DragStart, EditState Base) ->
-            ((data, ESText (EditState (Drag { 
+        (DragStart, TEditState Base) ->
+            ((data, ESText (TEditState (Drag { 
                 iconMouseOffsetX = mousePos.x - d.x - anchorPos.x,
                 iconMouseOffsetY = mousePos.y - d.y - anchorPos.y
             } ))), False)
 
         -- when we stop dragging a box, report its new state back down to the server
-        (DragStop, EditState (Drag _)) -> ((data, ESText (EditState Base)), True)
+        (DragStop, TEditState (Drag _)) -> ((data, ESText (TEditState Base)), True)
 
         _ -> ((data, state), False)
     _ -> ((data, state), False)
@@ -79,6 +82,7 @@ viewElement : (ElementId -> Msg -> msg) -> (ElementId, (Element, ElementState)) 
 viewElement converter (k, (e, s)) = 
     case (s, e) of
         (ESText state, TextBox data) -> viewTextBox converter (k, (data, state))
+        (ESRect state, Rect data) -> viewRect converter (k, (data, state))
         _ -> text "other object types not yet implemented"
 
 
@@ -105,7 +109,7 @@ viewTextBox converter (k, (data, state)) =
         dragBox = div [ css <| [ Tw.flex, Tw.justify_center, Tw.items_center
                                , Css.width (Css.px 20), Css.height (Css.px 20) ]
                                ++ (case state of
-                                       EditState (Drag _) -> [ Tw.bg_red_500 ]
+                                       TEditState (Drag _) -> [ Tw.bg_red_500 ]
                                        _ -> [ Tw.bg_black, Css.hover [ Tw.bg_red_700 ] ] )
                       ] [ dragIcon ]
 
@@ -122,13 +126,13 @@ viewTextBox converter (k, (data, state)) =
 
     in let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.left (Css.px data.x), Css.top (Css.px data.y)] 
                  ++ case state of
-                      ViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
-                      EditState _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
+                      TViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
+                      TEditState _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
 
            contents = List.map viewTextBlock data.data 
                            ++ (case state of
-                                    ViewState -> []
-                                    EditState _ -> [ dragWidget ])
+                                    TViewState -> []
+                                    TEditState _ -> [ dragWidget ])
 
     in div [ style, Events.onClick (converter k Select) ] contents
 
@@ -182,3 +186,15 @@ viewTextChunk chunk = case chunk of
     Text(text)               -> span [] [ Html.Styled.text text ]
     NewLine                  -> br [] []
 
+
+------------------------------------- rect -------------------------------------
+
+viewRect : (ElementId -> Msg -> msg) -> (ElementId, ({ x : Float, y : Float, width : Float, height : Float, z : Int, color : String }, RectState)) -> Html msg
+viewRect converter (k, (data, state)) =
+    
+        let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.height (Css.px data.height)
+                        , Css.left (Css.px data.x), Css.top (Css.px data.y)
+                        , Css.backgroundColor (Css.hex data.color)
+                        , Css.zIndex (Css.int data.z) ]
+    
+        in div [ style, Events.onClick (converter k Select) ] []

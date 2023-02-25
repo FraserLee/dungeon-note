@@ -30,7 +30,7 @@ impl Document {
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
 pub enum Element {
     Line    { x1: f64, y1: f64, x2: f64, y2: f64, },
-    Rect    { x: f64, y: f64, width: f64, height: f64, z: f64, color: String, },
+    Rect    { x: f64, y: f64, width: f64, height: f64, z: i32, color: String, },
     TextBox { x: f64, y: f64, width: f64,
 
         data: Vec<TextBlock>, // data is the parsed contents of the text box
@@ -52,7 +52,7 @@ impl Element {
 
             Element::Rect { x, y, width, height, z, color } =>
                 format!("{:!<80}", 
-                    format!("!!!!Rect!x:{:.1}!y:{:.1}!width:{:.1}!height:{:.1}!z:{:.1}!color:{}",
+                    format!("!!!!Rect!x:{:.1}!y:{:.1}!width:{:.1}!height:{:.1}!z:{}!color:{}",
                             x, y, width, height, z, color)
                     ),
 
@@ -211,6 +211,33 @@ lazy_static! {
 
 // -----------------------------------------------------------------------------
 
+fn parse_float(precursor: &ElementPrecursor, name: &str, default: Option<f64>) -> f64 {
+    if let Some(value) = precursor.properties.get(name) {
+        value.parse().expect(format!("invalid {} value: {}", name, value).as_str())
+    } else { match default {
+        Some(value) => value,
+        None => panic!("unable to find {} value", name),
+    }}
+}
+
+fn parse_int(precursor: &ElementPrecursor, name: &str, default: Option<i32>) -> i32 {
+    if let Some(value) = precursor.properties.get(name) {
+        value.parse().expect(format!("invalid {} value: {}", name, value).as_str())
+    } else { match default {
+        Some(value) => value,
+        None => panic!("unable to find {} value", name),
+    }}
+}
+
+fn parse_string(precursor: &ElementPrecursor, name: &str, default: Option<String>) -> String {
+    if let Some(value) = precursor.properties.get(name) {
+        value.to_string()
+    } else { match default {
+        Some(value) => value,
+        None => panic!("unable to find {} value", name),
+    }}
+}
+
 pub fn parse(text: &str) -> Document {
     let mut document = Document::new();
 
@@ -289,48 +316,31 @@ pub fn parse(text: &str) -> Document {
         let hash = hasher.finish();
         let key = format!("{}_{:x}", i, hash);
 
-        let parse_float = |name: &str, default: Option<f64>| -> f64 {
-            if let Some(value) = precursor.properties.get(name) {
-                value.parse().expect(format!("invalid {} value: {}", name, value).as_str())
-            } else { match default {
-                Some(value) => value,
-                None => panic!("unable to find {} value", name),
-            }}
-        };
-
-        let parse_string = |name: &str, default: Option<String>| -> String {
-            if let Some(value) = precursor.properties.get(name) {
-                value.to_string()
-            } else { match default {
-                Some(value) => value,
-                None => panic!("unable to find {} value", name),
-            }}
-        };
 
         // depending on the type of element, we'll parse it differently
         let element = match precursor.type_.as_str() {
             "text" => Element::TextBox {
-                x: parse_float("x", Some(-350.0)),
-                y: parse_float("y", Some(30.0)),
-                width: parse_float("width", Some(700.0)),
+                x: parse_float(precursor, "x", Some(-350.0)),
+                y: parse_float(precursor, "y", Some(30.0)),
+                width: parse_float(precursor, "width", Some(700.0)),
                 data: parse_text_blocks(&text),
                 raw_content: text.clone(),
             },
 
             "line" => Element::Line {
-                x1: parse_float("x1", None),
-                y1: parse_float("y1", None),
-                x2: parse_float("x2", None),
-                y2: parse_float("y2", None),
+                x1: parse_float(precursor, "x1", None),
+                y1: parse_float(precursor, "y1", None),
+                x2: parse_float(precursor, "x2", None),
+                y2: parse_float(precursor, "y2", None),
             },
 
             "rect" | "rectangle" => Element::Rect {
-                x: parse_float("x", Some(-400.0)),
-                y: parse_float("y", Some(0.0)),
-                width: parse_float("width", Some(800.0)),
-                height: parse_float("height", Some(600.0)),
-                z: parse_float("z", Some(-1.0)),
-                color: parse_string("color", Some("#00827c".to_string())),
+                x: parse_float(precursor, "x", Some(-400.0)),
+                y: parse_float(precursor, "y", Some(0.0)),
+                width: parse_float(precursor, "width", Some(800.0)),
+                height: parse_float(precursor, "height", Some(600.0)),
+                z: parse_int(precursor, "z", Some(-1)),
+                color: parse_string(precursor, "color", Some("#00827c".to_string())),
             },
 
             _ => panic!("unknown element type: {}", precursor.type_),
