@@ -90,7 +90,7 @@ viewElement converter (k, (e, s)) =
 
 
 
--- markdown stuff
+--------------------------------- markdown view --------------------------------
 
 viewTextBox : (ElementId -> Msg -> msg) -> (ElementId, ({ x : Float, y : Float, width : Float, data : List (TextBlock) }, TextBoxState)) -> Html msg
 viewTextBox converter (k, (data, state)) =

@@ -17,6 +17,10 @@
       fileChangeSource.onmessage = (event) => {
           app.ports.fileChange.send(event.data);
       }
+
+      fileChangeSource.onerror = (event) => {
+          app.ports.sseError.send("");
+      }
   </script>
 </body>
 </html>

@@ -26,10 +26,13 @@ import Dict exposing (Dict)
 
 port fileChange : (String -> msg) -> Sub msg
 
+port sseError : (String -> msg) -> Sub msg
+
 ---------------------------------- model types ---------------------------------
 
 type Model = Loading 
            | Loaded (PersistentState, VolatileState)
+           | Desync PersistentState -- holds the last known good state
            | Failed Http.Error
 
 type alias PersistentState = Document
@@ -49,6 +52,7 @@ type Msg = LoadDocument (Result Http.Error PersistentState)
          | MouseMove MousePos
          | Posted (Result Http.Error ()) -- not used, but required by Http.post
          | FileChange
+         | SSEError
 
 init : () -> (Model, Cmd Msg)
 init _ = (Loading, fetchData)
@@ -93,12 +97,15 @@ update msg model =
         -- reload on hearing that the file has changed
         (_, FileChange) -> (Loading, fetchData)
 
+        (_, SSEError) -> case model of
+            Loaded (data, volatiles) -> (Desync data, Cmd.none)
+            _ -> (model, Cmd.none)
+
         (_, SetAnchorPos pos) -> 
                 -- let _ = Debug.log "anchor pos" pos in 
                 case model of
                     Loaded (data, volatiles) -> (Loaded (data, { volatiles | anchorPos = pos }), Cmd.none)
                     _ -> (model, Cmd.none)
-
 
         ------------------------------ mouse move ------------------------------
 
@@ -163,7 +170,7 @@ update msg model =
 
 
 
-        -- fall-through (just do nothing, probably tried to act while document loading) 
+        -- fall-through (just do nothing, probably tried to act while document loading or desynced)
         _ -> (model, Cmd.none)
 
 
@@ -177,6 +184,8 @@ view model =
     case model of
         -- Failed err -> text ("Failed to load data: " ++ (Debug.toString err))
         Failed err -> text "Failed to load data."
+
+        Desync doc -> text "Desynced." -- todo: better error message
 
         Loading -> 
             div [ css [ Tw.absolute, Tw.inset_0, Tw.flex, Tw.items_center, Tw.justify_center ] ]
@@ -223,7 +232,9 @@ subscriptions _ =
         -- subscribe to a SSE stream to hear if the file changed
         fileSub = fileChange (\_ -> FileChange)
 
-    in Sub.batch [ mouseMoveSub, escapeSub, fileSub ]
+        sseErrorSub = sseError (\_ -> SSEError)
+
+    in Sub.batch [ mouseMoveSub, escapeSub, fileSub, sseErrorSub ]
 
 
 

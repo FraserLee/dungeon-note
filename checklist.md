@@ -79,6 +79,13 @@
 
 - [x] Write Readme
 
+- [ ] communicate when desync happens
+    - [x] when not connected to sse
+    - [ ] when document date is newer than local date
+        - [ ] provide error state from rust
+        - [ ] receive error state in elm
+    - [ ] overlay with reload button
+
 - [ ] Split example file into one focused entirely on markdown, and a second
       more literate one which demonstrates how to structure a document.
 
@@ -109,6 +116,8 @@
 - [ ] Math (both asciimath and latex would be ideal)
     - generate html on the backend, don't have anything like MathJax
       running on the site
+    - [ ] support `\def` between equations, other stateful things
+    - [ ] default def linking
 - [ ] Memoize markdown parsing
 - [ ] Highlight CodeBlocks
 - [ ] Executable CodeBlocks
