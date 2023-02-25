@@ -48,10 +48,10 @@ impl Element {
         // !!!!Text!x:-55.0!y:30.0!width:700.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         match self {
             Element::Line { x1, y1, x2, y2 } => 
-                format!("{:!<80}", format!("!!!!Line!x1:{:.1}!y1:{:.1}!x2:{:.1}!y2:{:.1}", x1, y1, x2, y2)),
+                format!("{:!<80}\n", format!("!!!!Line!x1:{:.1}!y1:{:.1}!x2:{:.1}!y2:{:.1}", x1, y1, x2, y2)),
 
             Element::Rect { x, y, width, height, z, color } =>
-                format!("{:!<80}", 
+                format!("{:!<80}\n", 
                     format!("!!!!Rect!x:{:.1}!y:{:.1}!width:{:.1}!height:{:.1}!z:{}!color:{}",
                             x, y, width, height, z, color)
                     ),
