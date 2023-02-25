@@ -305,7 +305,7 @@ pub fn parse(text: &str) -> Document {
 
         let text = text.lines()
             .skip(precursor.startline)
-            .take(precursor.endline - precursor.startline + 1)
+            .take(1 + precursor.endline - precursor.startline)
             .chain(std::iter::once(""))
             .collect::<Vec<&str>>()
             .join("\n");
