@@ -4,8 +4,9 @@ import Bindings exposing (..)
 import Element exposing (ElementId, ElementState, viewElement)
 import Utils exposing (..)
 
-import Html.Styled exposing (Html, div, text, h1, h2, h3)
+import Html.Styled exposing (Html, div, text, h1, h2, h3, a, button)
 import Html.Styled.Attributes as Attributes exposing (css)
+import Html.Styled.Events as Events
 import Tailwind.Utilities as Tw
 
 import Css
@@ -13,6 +14,7 @@ import Css
 import Browser
 import Browser.Events exposing (onMouseMove, onKeyDown)
 import Browser.Dom exposing (getElement)
+import Browser.Navigation as Navigation
 
 import Json.Decode as Decode exposing (Decoder, field)
 
@@ -48,11 +50,12 @@ type alias VolatileState = { anchorPos : AnchorPos
 type Msg = LoadDocument (Result Http.Error PersistentState)
          | SetAnchorPos AnchorPos
          | ElementMsg (ElementId, Element.Msg)
-         | Deselect
-         | MouseMove MousePos
+         | Deselect -- deselect all elements. <esc> key + when clicking on background (todo)
+         | MouseMove MousePos -- fired when the mouse moves
          | Posted (Result Http.Error ()) -- not used, but required by Http.post
          | FileChange
          | SSEError
+         | Reload -- reload the page itself
 
 init : () -> (Model, Cmd Msg)
 init _ = (Loading, fetchData)
@@ -73,6 +76,14 @@ loadAnchorPos = getElement "anchor-div"
                 -- let _ = Debug.log "Failed to load anchor position" er in
                 SetAnchorPos { x = 0, y = 0 })
 
+initVolatileState : PersistentState -> VolatileState
+initVolatileState data = 
+    { anchorPos = { x = 0, y = 0 }
+    , mousePos = { x = 0, y = 0 }
+    , elements = Dict.map (\_ -> Element.initState) data.elements
+    , canSelectText = 0
+    }
+
 
 ------------------------------------- logic ------------------------------------
 
@@ -82,19 +93,13 @@ update msg model =
 
         -------------------- load document, update volatiles -------------------
 
-        (_, LoadDocument (Ok data)) -> (
-                Loaded ( data, 
-                    { anchorPos = { x = 0, y = 0 }
-                    , mousePos = { x = 0, y = 0 }
-                    -- , elements = Dict.map (\_ _ -> ESText ViewState) data.elements
-                    , elements = Dict.map (\_ -> Element.initState) data.elements
-                    , canSelectText = 0
-                    }
-                ), Cmd.batch [loadAnchorPos])
+        (_, LoadDocument (Ok data)) -> 
+            ( Loaded (data, initVolatileState data)
+            , Cmd.batch [loadAnchorPos] )
 
         (_, LoadDocument (Err err)) -> (Failed err, Cmd.none)
 
-        -- reload on hearing that the file has changed
+        -- reload data on hearing that the file has changed
         (_, FileChange) -> (Loading, fetchData)
 
         (_, SSEError) -> case model of
@@ -125,6 +130,14 @@ update msg model =
                 volatiles1 = { volatiles | elements = vElements, mousePos = p }
 
             in (Loaded (doc1, volatiles1), loadAnchorPos)
+
+        -------------------------------- reload --------------------------------
+
+        -- todo: fire Navigation.reload when in a release build, Navigation.reloadAndSkipCache in a dev build
+        (_, Reload) -> 
+            -- let _ = Debug.log "Reloading" "" in
+            -- (model, Navigation.reload)
+            (model, Navigation.reloadAndSkipCache)
 
         ---------------------------- update elements ---------------------------
 
@@ -185,7 +198,25 @@ view model =
         -- Failed err -> text ("Failed to load data: " ++ (Debug.toString err))
         Failed err -> text "Failed to load data."
 
-        Desync doc -> text "Desynced." -- todo: better error message
+        Desync doc ->
+            let baseHtml = Loaded (doc, initVolatileState doc) |> view
+
+                baseHtmlDark = div [ ]
+                               [ div [ css [ Tw.absolute, Tw.inset_0, Tw.bg_black, Tw.opacity_70, Tw.z_40 ] ] []
+                               , baseHtml
+                               ]
+
+                button = div [ css [ Tw.bg_gray_100, Tw.text_black, Tw.p_2, Tw.border_none, Tw.cursor_pointer ]
+                             , Events.onClick Reload
+                             ] [ div [ css [ Tw.font_bold ] ] [ text "reload" ] ]
+
+                reload = div [ css [ Tw.absolute, Tw.inset_0, Tw.flex, Tw.flex_col, Tw.items_center, Tw.justify_center, Tw.z_50 ] ]
+                            [ h2 [ css [ Tw.text_xl ] ] [ text "desync from server. " ], button ]
+
+            in div []
+                   [ reload
+                   , baseHtmlDark
+                   ]
 
         Loading -> 
             div [ css [ Tw.absolute, Tw.inset_0, Tw.flex, Tw.items_center, Tw.justify_center ] ]

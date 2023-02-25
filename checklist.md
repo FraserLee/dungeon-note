@@ -84,7 +84,7 @@
     - [ ] when document date is newer than local date
         - [ ] provide error state from rust
         - [ ] receive error state in elm
-    - [ ] overlay with reload button
+    - [x] overlay with reload button
 
 - [ ] Split example file into one focused entirely on markdown, and a second
       more literate one which demonstrates how to structure a document.
