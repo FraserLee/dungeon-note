@@ -23,6 +23,7 @@ type alias ElementId = String
 type alias MouseOffset = { offsetX : Float, offsetY : Float }
 
 type ElementState = ESText TextBoxState | ESRect RectState
+
 type TextBoxState = TViewState | TEditState | TDragState MouseOffset
 
 type RectState = RViewState | REditState | RDragState MouseOffset
@@ -50,6 +51,7 @@ deselect (data, state) = case state of
 -- if a box is selected and in drag mode, update its position
 mousemove : MousePos -> AnchorPos -> (Element, ElementState) -> (Element, ElementState)
 mousemove {x, y} anchorPos (data, state) = case (data, state) of
+
     (TextBox d, ESText (TDragState { offsetX, offsetY })) ->
         let x1 = x - anchorPos.x - offsetX
             y1 = y - anchorPos.y - offsetY
@@ -221,13 +223,25 @@ viewRect converter (k, (data, state)) =
     
         let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.height (Css.px data.height)
                         , Css.left (Css.px data.x), Css.top (Css.px data.y)
-                        , Css.backgroundColor (Css.hex data.color), Css.zIndex (Css.int (data.z + 10)) ]
+                        , Css.backgroundColor (Css.hex data.color) ]
                         ++ case state of
-                            RViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
-                            _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
-                        
-    
-        in  case state of
-                RViewState -> div [ style, Events.onClick (converter k Select) ] []
-                REditState -> div [ style, Events.onMouseDown (converter k DragStart) ] []
-                RDragState _ -> div [ style, Events.onMouseDown (converter k DragStop) ] []
+
+                            RViewState -> [ Css.zIndex (Css.int (data.z + 10))
+                                          , Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
+
+                            REditState -> [ Css.zIndex (Css.int (data.z + 10)), Tw.cursor_move
+                                          , Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
+
+                            -- increase z-index when dragging, so we don't try
+                            -- to release when under another element and miss
+                            -- the onMouseUp event.
+
+                            RDragState _ -> [ Css.zIndex (Css.int (data.z + 1000)), Tw.cursor_move
+                                            , Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
+
+            events = case state of
+                RViewState -> [ Events.onClick (converter k Select) ]
+                _ -> [ Events.onMouseDown (converter k DragStart)
+                     , Events.onMouseUp (converter k DragStop) ]
+
+        in div (style::events) []

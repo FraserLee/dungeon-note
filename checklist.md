@@ -91,12 +91,23 @@
 
 - [ ] Further Textbox edit-mode capabilities
     - [ ] Proper left-right position / resize
-    - [ ] Drag centre does position
     - [ ] rotation
-        - white single-pixel wheel around the point of the thing, mouseover
     - [ ] deselect when clicking background
 
 - [ ] Rectangles
+    - [x] parse
+    - [x] render
+    - [x] drag position
+    - [ ] drag edge / corner to resize
+    - [ ] convert onMouseUp to just a mouseup event listener - no location dependence
+        - [ ] drag rects while still in background.
+    - [ ] rotation
+        - white single-pixel wheel around the point of the thing, mouseover
+    - [ ] move to wrapping interface, have textboxes use a limited version
+          of it with only left-right edges.
+
+
+- [ ] deselect when clicking background
 
 - [ ] Lines
 
