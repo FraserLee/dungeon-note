@@ -10,8 +10,9 @@ import Html.Styled exposing (Html, div, span, p, text, h1, h2, h3, h4, h5, h6
                                  , b, i, u, s, a, img, code, li, ol, ul
                                  , blockquote, br, hr)
 
-import Html.Styled.Attributes as Attributes exposing (css)
 import Html.Styled.Events as Events
+import Html.Styled.Attributes as Attributes exposing (css)
+-- note to self: real css z-index should be data.zIndex + 10
 
 import Css
 
@@ -24,7 +25,7 @@ type alias MouseOffset = { offsetX : Float, offsetY : Float }
 type ElementState = ESText TextBoxState | ESRect RectState
 type TextBoxState = TViewState | TEditState | TDragState MouseOffset
 
-type RectState = RViewState -- ...
+type RectState = RViewState | REditState | RDragState MouseOffset
 
 type Msg = Select | DragStart | DragStop 
 
@@ -43,8 +44,8 @@ initState element = case element of
 
 deselect : (Element, ElementState) -> (Element, ElementState)
 deselect (data, state) = case state of
-        ESText _ -> (data, ESText TViewState)
-        ESRect _ -> (data, ESRect RViewState)
+    ESText _ -> (data, ESText TViewState)
+    ESRect _ -> (data, ESRect RViewState)
 
 -- if a box is selected and in drag mode, update its position
 mousemove : MousePos -> AnchorPos -> (Element, ElementState) -> (Element, ElementState)
@@ -53,6 +54,12 @@ mousemove {x, y} anchorPos (data, state) = case (data, state) of
         let x1 = x - anchorPos.x - offsetX
             y1 = y - anchorPos.y - offsetY
         in (TextBox { d | x = x1, y = y1 }, state)
+
+    (Rect d, ESRect (RDragState { offsetX, offsetY })) ->
+        let x1 = x - anchorPos.x - offsetX
+            y1 = y - anchorPos.y - offsetY
+        in (Rect { d | x = x1, y = y1 }, state)
+
     _ -> (data, state)
 
 
@@ -73,6 +80,24 @@ update mousePos anchorPos msg (data, state) = case (data, state) of
 
         -- when we stop dragging a box, report its new state back down to the server
         (DragStop, TDragState _) -> ((data, ESText TEditState), True)
+
+        _ -> ((data, state), False)
+
+    (Rect d, ESRect s) ->
+        let _ = Debug.log "rect" (msg, s) in
+
+        case (msg, s) of
+
+        (Select, RViewState) -> ((data, ESRect REditState), False)
+
+        (DragStart, REditState) ->
+            ((data, ESRect (RDragState { 
+                offsetX = mousePos.x - d.x - anchorPos.x,
+                offsetY = mousePos.y - d.y - anchorPos.y
+            } )), False)
+
+        -- when we stop dragging a box, report its new state back down to the server
+        (DragStop, RDragState _) -> ((data, ESRect REditState), True)
 
         _ -> ((data, state), False)
 
@@ -120,13 +145,13 @@ viewTextBox converter (k, (data, state)) =
                         , Tw.bg_transparent, Tw.cursor_move
                         , Css.top (Css.px -20), Css.left (Css.px -20)
                         , Css.width (Css.px 40), Css.height (Css.px 40)
-                        , Css.zIndex (Css.int 10) ]
+                        , Css.zIndex (Css.int 5) ]
 
         dragWidget = div [ css dragWidgetCss
                          , Events.onMouseDown (converter k DragStart)
                          , Events.onMouseUp (converter k DragStop)] [ dragBox ]
 
-    in let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.left (Css.px data.x), Css.top (Css.px data.y)] 
+    in let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.left (Css.px data.x), Css.top (Css.px data.y), Css.zIndex (Css.int 10) ]
                  ++ case state of
                       TViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
                       _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
@@ -196,7 +221,13 @@ viewRect converter (k, (data, state)) =
     
         let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.height (Css.px data.height)
                         , Css.left (Css.px data.x), Css.top (Css.px data.y)
-                        , Css.backgroundColor (Css.hex data.color)
-                        , Css.zIndex (Css.int data.z) ]
+                        , Css.backgroundColor (Css.hex data.color), Css.zIndex (Css.int (data.z + 10)) ]
+                        ++ case state of
+                            RViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
+                            _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
+                        
     
-        in div [ style, Events.onClick (converter k Select) ] []
+        in  case state of
+                RViewState -> div [ style, Events.onClick (converter k Select) ] []
+                REditState -> div [ style, Events.onMouseDown (converter k DragStart) ] []
+                RDragState _ -> div [ style, Events.onMouseDown (converter k DragStop) ] []
