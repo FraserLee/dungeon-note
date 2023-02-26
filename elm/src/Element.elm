@@ -19,11 +19,12 @@ import Css
 
 type alias ElementId = String
 
-type ElementState = ESText TextBoxState | ESRect RectState
-type TextBoxState = TViewState | TEditState TextBoxEditState
-type TextBoxEditState = Base | Drag { iconMouseOffsetX : Float, iconMouseOffsetY : Float }
+type alias MouseOffset = { offsetX : Float, offsetY : Float }
 
-type RectState = RViewState -- | EditState RectEditState
+type ElementState = ESText TextBoxState | ESRect RectState
+type TextBoxState = TViewState | TEditState | TDragState MouseOffset
+
+type RectState = RViewState -- ...
 
 type Msg = Select | DragStart | DragStop 
 
@@ -48,9 +49,9 @@ deselect (data, state) = case state of
 -- if a box is selected and in drag mode, update its position
 mousemove : MousePos -> AnchorPos -> (Element, ElementState) -> (Element, ElementState)
 mousemove {x, y} anchorPos (data, state) = case (data, state) of
-    (TextBox d, ESText (TEditState (Drag { iconMouseOffsetX, iconMouseOffsetY }))) ->
-        let x1 = x - anchorPos.x - iconMouseOffsetX
-            y1 = y - anchorPos.y - iconMouseOffsetY
+    (TextBox d, ESText (TDragState { offsetX, offsetY })) ->
+        let x1 = x - anchorPos.x - offsetX
+            y1 = y - anchorPos.y - offsetY
         in (TextBox { d | x = x1, y = y1 }, state)
     _ -> (data, state)
 
@@ -62,18 +63,19 @@ update : MousePos -> AnchorPos -> Msg -> (Element, ElementState) -> ((Element, E
 update mousePos anchorPos msg (data, state) = case (data, state) of
     (TextBox d, ESText s) -> case (msg, s) of
 
-        (Select, TViewState) -> ((data, ESText (TEditState Base)), False)
+        (Select, TViewState) -> ((data, ESText TEditState), False)
 
-        (DragStart, TEditState Base) ->
-            ((data, ESText (TEditState (Drag { 
-                iconMouseOffsetX = mousePos.x - d.x - anchorPos.x,
-                iconMouseOffsetY = mousePos.y - d.y - anchorPos.y
-            } ))), False)
+        (DragStart, TEditState) ->
+            ((data, ESText (TDragState { 
+                offsetX = mousePos.x - d.x - anchorPos.x,
+                offsetY = mousePos.y - d.y - anchorPos.y
+            } )), False)
 
         -- when we stop dragging a box, report its new state back down to the server
-        (DragStop, TEditState (Drag _)) -> ((data, ESText (TEditState Base)), True)
+        (DragStop, TDragState _) -> ((data, ESText TEditState), True)
 
         _ -> ((data, state), False)
+
     _ -> ((data, state), False)
 
 ------------------------------------- view -------------------------------------
@@ -109,7 +111,7 @@ viewTextBox converter (k, (data, state)) =
         dragBox = div [ css <| [ Tw.flex, Tw.justify_center, Tw.items_center
                                , Css.width (Css.px 20), Css.height (Css.px 20) ]
                                ++ (case state of
-                                       TEditState (Drag _) -> [ Tw.bg_red_500 ]
+                                       TDragState _ -> [ Tw.bg_red_500 ]
                                        _ -> [ Tw.bg_black, Css.hover [ Tw.bg_red_700 ] ] )
                       ] [ dragIcon ]
 
@@ -127,12 +129,12 @@ viewTextBox converter (k, (data, state)) =
     in let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.left (Css.px data.x), Css.top (Css.px data.y)] 
                  ++ case state of
                       TViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
-                      TEditState _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
+                      _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
 
            contents = List.map viewTextBlock data.data 
                            ++ (case state of
                                     TViewState -> []
-                                    TEditState _ -> [ dragWidget ])
+                                    _ -> [ dragWidget ])
 
     in div [ style, Events.onClick (converter k Select) ] contents
 
