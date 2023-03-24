@@ -6,8 +6,8 @@ diagrams and edit the layout and design of the page in real time.
 Everything is stored in plain text, locally. No syncing, no cloud, use your own
 preferred text editor. 
 
-Optimized for zero friction, and a note taking experience as expressive as
-paper.
+Optimized for zero friction, and a note taking experience nearly as expressive
+as paper.
 
 ## Warning
 
@@ -21,11 +21,11 @@ you'll need to build it yourself. Sorry. Just message me or create an issue if
 you can't get it working.
 
 ### Requirements
-1. You probably already have `python3` and `git` installed. If not, then do that.
+1. You probably already have `python3` and `git` installed. If not, do that.
 2. If you don't already have it, install [`rust`](https://www.rust-lang.org/tools/install)
 3. Install [`elm`](https://elm-lang.org/)
 
----
+From there, just
 
 ```bash
 # Clone the repo

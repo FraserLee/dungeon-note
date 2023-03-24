@@ -26,9 +26,13 @@ type ElementState = ESText TextBoxState | ESRect RectState
 
 type TextBoxState = TViewState | TEditState | TDragState MouseOffset
 
-type RectState = RViewState | REditState | RDragState MouseOffset
+type RectState = RViewState | REditState | RDragState (DragType, MouseOffset)
+-- todo: convert into bounds based form
+type DragType = DMove | DLeft -- | DRight -- | DTop | DBottom
 
-type Msg = Select | DragStart | DragStop 
+
+type Msg = Select | DragStart DragType | DragStop 
+
 
 ------------------------------------- init -------------------------------------
 
@@ -57,10 +61,16 @@ mousemove {x, y} anchorPos (data, state) = case (data, state) of
             y1 = y - anchorPos.y - offsetY
         in (TextBox { d | x = x1, y = y1 }, state)
 
-    (Rect d, ESRect (RDragState { offsetX, offsetY })) ->
+    (Rect d, ESRect (RDragState (DMove, { offsetX, offsetY }))) ->
         let x1 = x - anchorPos.x - offsetX
             y1 = y - anchorPos.y - offsetY
         in (Rect { d | x = x1, y = y1 }, state)
+
+    (Rect d, ESRect (RDragState (DLeft, { offsetX, offsetY }))) ->
+        let x1 = x - anchorPos.x - offsetX
+            y1 = y - anchorPos.y - offsetY
+            w1 = d.width + d.x - x1
+        in (Rect { d | x = x1, y = y1, width = w1 }, state)
 
     _ -> (data, state)
 
@@ -74,7 +84,7 @@ update mousePos anchorPos msg (data, state) = case (data, state) of
 
         (Select, TViewState) -> ((data, ESText TEditState), False)
 
-        (DragStart, TEditState) ->
+        (DragStart _, TEditState) ->
             ((data, ESText (TDragState { 
                 offsetX = mousePos.x - d.x - anchorPos.x,
                 offsetY = mousePos.y - d.y - anchorPos.y
@@ -92,11 +102,11 @@ update mousePos anchorPos msg (data, state) = case (data, state) of
 
         (Select, RViewState) -> ((data, ESRect REditState), False)
 
-        (DragStart, REditState) ->
-            ((data, ESRect (RDragState { 
+        (DragStart dType, REditState) ->
+            ((data, ESRect (RDragState (dType, {
                 offsetX = mousePos.x - d.x - anchorPos.x,
                 offsetY = mousePos.y - d.y - anchorPos.y
-            } )), False)
+            }) )), False)
 
         -- when we stop dragging a box, report its new state back down to the server
         (DragStop, RDragState _) -> ((data, ESRect REditState), True)
@@ -150,7 +160,7 @@ viewTextBox converter (k, (data, state)) =
                         , Css.zIndex (Css.int 5) ]
 
         dragWidget = div [ css dragWidgetCss
-                         , Events.onMouseDown (converter k DragStart)
+                         , Events.onMouseDown (converter k (DragStart DMove))
                          , Events.onMouseUp (converter k DragStop)] [ dragBox ]
 
     in let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.left (Css.px data.x), Css.top (Css.px data.y), Css.zIndex (Css.int 10) ]
@@ -241,7 +251,7 @@ viewRect converter (k, (data, state)) =
 
             events = case state of
                 RViewState -> [ Events.onClick (converter k Select) ]
-                _ -> [ Events.onMouseDown (converter k DragStart)
+                _ -> [ Events.onMouseDown (converter k (DragStart DMove))
                      , Events.onMouseUp (converter k DragStop) ]
 
         in div (style::events) []

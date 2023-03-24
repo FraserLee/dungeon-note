@@ -183,7 +183,7 @@ update msg model =
 
                 -- if we're dragging something, don't allow text selection
                 canSelectText = volatiles.canSelectText + case e_msg of
-                    Element.DragStart -> 1
+                    Element.DragStart _ -> 1
                     Element.DragStop -> -1
                     _ -> 0
 

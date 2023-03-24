@@ -142,5 +142,9 @@
 - [ ] make youtube video about how to use this, write tutorials
 - [ ] syntax highlighting for .dn files
 - [ ] put on brew
+- [ ] swap from strings to ropes in the rust parser
+    - possibly jumprope-rs, just pick something that allows regex
+    - profile before and after
 - [ ] vim plugin
+- [ ] add lesswrong-style transparent floating sidebar table of contents.
 - [ ] find out other things that should be on this list.
