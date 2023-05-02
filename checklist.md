@@ -99,6 +99,13 @@
     - [x] render
     - [x] drag position
     - [ ] drag edge / corner to resize
+        - [x] Left circle
+        - [x] Right circle
+        - [x] Top and Bottom circles
+        - [ ] Rewrite to be less manual
+        - [ ] Corner circles
+        - [ ] Change sides from circles to invisible rectangles
+        - [ ] Make corners invisible
     - [ ] convert onMouseUp to just a mouseup event listener - no location dependence
         - [ ] drag rects while still in background.
     - [ ] rotation

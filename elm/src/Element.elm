@@ -34,8 +34,7 @@ type ElementState = ESText TextBoxState | ESRect RectState
 type TextBoxState = TViewState | TEditState | TDragState MouseOffset
 
 type RectState = RViewState | REditState | RDragState (DragType, MouseOffset)
--- todo: convert into bounds based form
-type DragType = DMove | DLeft | DRight -- | DTop | DBottom
+type DragType = DMove | DLeft | DRight | DTop | DBot -- | DTopLeft | DTopRight | DBotLeft | DBotRight
 
 
 type Msg = Select | DragStart DragType | DragStop 
@@ -86,6 +85,20 @@ mousemove {x, y} anchorPos (data, state) = case (data, state) of
             w1 = max rectMinWidth targetW
         in (Rect { d | width = w1 }, state)
 
+    (Rect d, ESRect (RDragState (DTop, { offsetX, offsetY }))) ->
+        -- let _ = Debug.log "top" [y - anchorPos.y, offsetY, d.y] in
+        let targetY = y - anchorPos.y - offsetY
+            targetH = d.height + d.y - targetY
+            h1 = max rectMinWidth targetH
+            y1 = d.y + d.height - h1
+        in (Rect { d | y = y1, height = h1 }, state)
+
+    (Rect d, ESRect (RDragState (DBot, { offsetX, offsetY }))) ->
+        -- let _ = Debug.log "bottom" [y - anchorPos.y, offsetY, d.y] in
+        let targetH = y - anchorPos.y - d.y - offsetY
+            h1 = max rectMinWidth targetH
+        in (Rect { d | height = h1 }, state)
+
     _ -> (data, state)
 
 
@@ -127,13 +140,19 @@ mouseOffset : DragType -> MousePos -> AnchorPos -> Float -> Float -> Float -> Fl
 mouseOffset dType mousePos anchorPos x y w h = {
         offsetX = case dType of
             DMove  -> mousePos.x - x - anchorPos.x
+
             DLeft  -> mousePos.x - x - anchorPos.x
             DRight -> mousePos.x - x - anchorPos.x - w
+            DTop   -> mousePos.x - x - anchorPos.x - w / 2
+            DBot   -> mousePos.x - x - anchorPos.x - w / 2
 
         , offsetY = case dType of
             DMove  -> mousePos.y - y - anchorPos.y
-            DLeft  -> mousePos.y - y - anchorPos.y
-            DRight -> mousePos.y - y - anchorPos.y
+
+            DLeft  -> mousePos.y - y - anchorPos.y - h / 2
+            DRight -> mousePos.y - y - anchorPos.y - h / 2
+            DTop   -> mousePos.y - y - anchorPos.y
+            DBot   -> mousePos.y - y - anchorPos.y - h
     }
 
 
@@ -281,10 +300,7 @@ viewRect converter (k, (data, state)) =
             -- add 8 floating drag handles to the sides and corners
             children = case state of
                 RViewState -> []
-                -- _ -> [ (1, 0, DRight), (1, 1, DTopRight), (0, 1, DTop), (-1, 1, DTopLeft)
-                --      , (-1, 0, DLeft), (-1, -1, DBotLeft), (0, -1, DBot), (1, -1, DBotRight) ]
-                _ -> [ (-1, 0, DLeft), (1, 0, DRight) ]
-                     -- |> List.map (\(x, y, dir) -> viewDragHandle converter k (x, y) dir)
+                _ -> [ (-1, 0, DLeft), (1, 0, DRight), (0, -1, DTop), (0, 1, DBot) ]
                      |> List.map (\(x, y, dir) -> viewDragHandle converter (k, {width = data.width, height = data.height}) (x, y) dir)
 
         in div (style::events) children
@@ -297,8 +313,8 @@ viewDragHandle converter (k, data) (x, y) dir =
             DMove     -> Css.cursor Css.move
             DLeft     -> Css.cursor Css.ewResize
             DRight    -> Css.cursor Css.ewResize
-            -- DTop      -> Css.cursor Css.nsResize
-            -- DBot      -> Css.cursor Css.nsResize
+            DTop      -> Css.cursor Css.nsResize
+            DBot      -> Css.cursor Css.nsResize
             -- DTopLeft  -> Css.cursor Css.nwseResize
             -- DBotRight -> Css.cursor Css.nwseResize
             -- DTopRight -> Css.cursor Css.neswResize
