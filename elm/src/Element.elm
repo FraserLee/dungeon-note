@@ -35,7 +35,7 @@ type TextBoxState = TViewState | TEditState | TDragState MouseOffset
 
 type RectState = RViewState | REditState | RDragState (DragType, MouseOffset)
 -- todo: convert into bounds based form
-type DragType = DMove | DLeft -- | DRight -- | DTop | DBottom
+type DragType = DMove | DLeft | DRight -- | DTop | DBottom
 
 
 type Msg = Select | DragStart DragType | DragStop 
@@ -73,12 +73,18 @@ mousemove {x, y} anchorPos (data, state) = case (data, state) of
         in (Rect { d | x = x1, y = y1 }, state)
 
     (Rect d, ESRect (RDragState (DLeft, { offsetX, offsetY }))) ->
-        let _ = Debug.log "left" [x, anchorPos.x, offsetX, d.x] in
+        -- let _ = Debug.log "left" [x - anchorPos.x, offsetX, d.x] in
         let targetX = x - anchorPos.x - offsetX
             targetW = d.width + d.x - targetX
             w1 = max rectMinWidth targetW
             x1 = d.x + d.width - w1
         in (Rect { d | x = x1, width = w1 }, state)
+
+    (Rect d, ESRect (RDragState (DRight, { offsetX, offsetY }))) ->
+        -- let _ = Debug.log "right" [x - anchorPos.x, offsetX, d.x] in
+        let targetW = x - anchorPos.x - d.x - offsetX
+            w1 = max rectMinWidth targetW
+        in (Rect { d | width = w1 }, state)
 
     _ -> (data, state)
 
@@ -92,11 +98,8 @@ update mousePos anchorPos msg (data, state) = case (data, state) of
 
         (Select, TViewState) -> ((data, ESText TEditState), False)
 
-        (DragStart _, TEditState) ->
-            ((data, ESText (TDragState { 
-                offsetX = mousePos.x - d.x - anchorPos.x,
-                offsetY = mousePos.y - d.y - anchorPos.y
-            } )), False)
+        (DragStart dType, TEditState) ->
+            ((data, ESRect (RDragState (dType, mouseOffset dType mousePos anchorPos d.x d.y d.width 0) )), False)
 
         -- when we stop dragging a box, report its new state back down to the server
         (DragStop, TDragState _) -> ((data, ESText TEditState), True)
@@ -111,10 +114,7 @@ update mousePos anchorPos msg (data, state) = case (data, state) of
         (Select, RViewState) -> ((data, ESRect REditState), False)
 
         (DragStart dType, REditState) ->
-            ((data, ESRect (RDragState (dType, {
-                offsetX = mousePos.x - d.x - anchorPos.x,
-                offsetY = mousePos.y - d.y - anchorPos.y
-            }) )), False)
+            ((data, ESRect (RDragState (dType, mouseOffset dType mousePos anchorPos d.x d.y d.width d.height) )), False)
 
         -- when we stop dragging a box, report its new state back down to the server
         (DragStop, RDragState _) -> ((data, ESRect REditState), True)
@@ -122,6 +122,22 @@ update mousePos anchorPos msg (data, state) = case (data, state) of
         _ -> ((data, state), False)
 
     _ -> ((data, state), False)
+
+mouseOffset : DragType -> MousePos -> AnchorPos -> Float -> Float -> Float -> Float -> MouseOffset
+mouseOffset dType mousePos anchorPos x y w h = {
+        offsetX = case dType of
+            DMove  -> mousePos.x - x - anchorPos.x
+            DLeft  -> mousePos.x - x - anchorPos.x
+            DRight -> mousePos.x - x - anchorPos.x - w
+
+        , offsetY = case dType of
+            DMove  -> mousePos.y - y - anchorPos.y
+            DLeft  -> mousePos.y - y - anchorPos.y
+            DRight -> mousePos.y - y - anchorPos.y
+    }
+
+
+
 
 ------------------------------------- view -------------------------------------
 
@@ -267,7 +283,7 @@ viewRect converter (k, (data, state)) =
                 RViewState -> []
                 -- _ -> [ (1, 0, DRight), (1, 1, DTopRight), (0, 1, DTop), (-1, 1, DTopLeft)
                 --      , (-1, 0, DLeft), (-1, -1, DBotLeft), (0, -1, DBot), (1, -1, DBotRight) ]
-                _ -> [ (-1, 0, DLeft) ]
+                _ -> [ (-1, 0, DLeft), (1, 0, DRight) ]
                      -- |> List.map (\(x, y, dir) -> viewDragHandle converter k (x, y) dir)
                      |> List.map (\(x, y, dir) -> viewDragHandle converter (k, {width = data.width, height = data.height}) (x, y) dir)
 
@@ -280,7 +296,7 @@ viewDragHandle converter (k, data) (x, y) dir =
     let cursor = case dir of
             DMove     -> Css.cursor Css.move
             DLeft     -> Css.cursor Css.ewResize
-            -- DRight    -> Css.cursor Css.ewResize
+            DRight    -> Css.cursor Css.ewResize
             -- DTop      -> Css.cursor Css.nsResize
             -- DBot      -> Css.cursor Css.nsResize
             -- DTopLeft  -> Css.cursor Css.nwseResize
