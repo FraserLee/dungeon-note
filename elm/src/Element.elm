@@ -16,6 +16,13 @@ import Html.Styled.Attributes as Attributes exposing (css)
 
 import Css
 
+----------------------------------- constants ----------------------------------
+
+rectMinWidth = 40
+dragIconSize = 10
+
+
+
 ------------------------------------- types ------------------------------------
 
 type alias ElementId = String
@@ -32,7 +39,6 @@ type DragType = DMove | DLeft -- | DRight -- | DTop | DBottom
 
 
 type Msg = Select | DragStart DragType | DragStop 
-
 
 ------------------------------------- init -------------------------------------
 
@@ -67,10 +73,12 @@ mousemove {x, y} anchorPos (data, state) = case (data, state) of
         in (Rect { d | x = x1, y = y1 }, state)
 
     (Rect d, ESRect (RDragState (DLeft, { offsetX, offsetY }))) ->
-        let x1 = x - anchorPos.x - offsetX
-            y1 = y - anchorPos.y - offsetY
-            w1 = d.width + d.x - x1
-        in (Rect { d | x = x1, y = y1, width = w1 }, state)
+        let _ = Debug.log "left" [x, anchorPos.x, offsetX, d.x] in
+        let targetX = x - anchorPos.x - offsetX
+            targetW = d.width + d.x - targetX
+            w1 = max rectMinWidth targetW
+            x1 = d.x + d.width - w1
+        in (Rect { d | x = x1, width = w1 }, state)
 
     _ -> (data, state)
 
@@ -237,21 +245,58 @@ viewRect converter (k, (data, state)) =
                         ++ case state of
 
                             RViewState -> [ Css.zIndex (Css.int (data.z + 10))
-                                          , Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
+                                          , Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000") ]
 
                             REditState -> [ Css.zIndex (Css.int (data.z + 10)), Tw.cursor_move
-                                          , Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
+                                          , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
 
                             -- increase z-index when dragging, so we don't try
                             -- to release when under another element and miss
                             -- the onMouseUp event.
 
                             RDragState _ -> [ Css.zIndex (Css.int (data.z + 1000)), Tw.cursor_move
-                                            , Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
+                                            , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
 
             events = case state of
                 RViewState -> [ Events.onClick (converter k Select) ]
                 _ -> [ Events.onMouseDown (converter k (DragStart DMove))
                      , Events.onMouseUp (converter k DragStop) ]
 
-        in div (style::events) []
+            -- add 8 floating drag handles to the sides and corners
+            children = case state of
+                RViewState -> []
+                -- _ -> [ (1, 0, DRight), (1, 1, DTopRight), (0, 1, DTop), (-1, 1, DTopLeft)
+                --      , (-1, 0, DLeft), (-1, -1, DBotLeft), (0, -1, DBot), (1, -1, DBotRight) ]
+                _ -> [ (-1, 0, DLeft) ]
+                     -- |> List.map (\(x, y, dir) -> viewDragHandle converter k (x, y) dir)
+                     |> List.map (\(x, y, dir) -> viewDragHandle converter (k, {width = data.width, height = data.height}) (x, y) dir)
+
+        in div (style::events) children
+
+
+viewDragHandle : (ElementId -> Msg -> msg) -> (ElementId, { width : Float, height : Float }) -> (Float, Float) -> DragType -> Html msg
+viewDragHandle converter (k, data) (x, y) dir =
+
+    let cursor = case dir of
+            DMove     -> Css.cursor Css.move
+            DLeft     -> Css.cursor Css.ewResize
+            -- DRight    -> Css.cursor Css.ewResize
+            -- DTop      -> Css.cursor Css.nsResize
+            -- DBot      -> Css.cursor Css.nsResize
+            -- DTopLeft  -> Css.cursor Css.nwseResize
+            -- DBotRight -> Css.cursor Css.nwseResize
+            -- DTopRight -> Css.cursor Css.neswResize
+            -- DBotLeft  -> Css.cursor Css.neswResize
+
+        style = css <| [ Css.width (Css.px dragIconSize), Css.height (Css.px dragIconSize)
+                       , Tw.absolute
+                       , Css.top (Css.px ((y + 1) * data.height / 2 - dragIconSize / 2))
+                       , Css.left (Css.px ((x + 1) * data.width / 2 - dragIconSize / 2))
+                       , Css.backgroundColor (Css.rgb 203 213 225)
+                       , Tw.rounded_full, cursor
+                       , Css.zIndex (Css.int 5) ]
+
+        events = [ Events.onMouseDown (converter k (DragStart dir))
+                 , Events.onMouseUp (converter k DragStop) ]
+
+    in div (style::events) []
