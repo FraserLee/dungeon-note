@@ -18,7 +18,7 @@ import Css
 
 ----------------------------------- constants ----------------------------------
 
-rectMinWidth = 40
+rectMinWidth = 20
 resizeRegionSize = 10
 
 
@@ -110,10 +110,15 @@ mousemove {x, y} anchorPos (data, state) = case (data, state) of
             y1 = if t then targetY else d.y
             x2 = if r then targetX else d.x + d.width
             y2 = if b then targetY else d.y + d.height
+
             w = max rectMinWidth <| if l && r then d.width else x2 - x1
             h = max rectMinWidth <| if t && b then d.height else y2 - y1
 
-        in (Rect { d | x = x1, y = y1, width = w, height = h }, state)
+            -- Stop forwards-slide past end-point
+            x3 = if r then x1 else min x1 (x2 - rectMinWidth)
+            y3 = if b then y1 else min y1 (y2 - rectMinWidth)
+
+        in (Rect { d | x = x3, y = y3, width = w, height = h }, state)
 
     _ -> (data, state)
 

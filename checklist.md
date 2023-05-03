@@ -106,7 +106,7 @@
         - [x] Corner circles
         - [x] Change sides from circles to invisible rectangles
         - [x] Make corners invisible
-        - [ ] Stop forwards-slide past end-point
+        - [x] Stop forwards-slide past end-point
     - [ ] convert onMouseUp to just a mouseup event listener - no location dependence
         - [ ] drag rects while still in background.
     - [ ] rotation
