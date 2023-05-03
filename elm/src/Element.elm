@@ -68,7 +68,7 @@ dTypeBotFree dType = case dType of
     DBotRight -> True
     _ -> False
 
-type Msg = Select | DragStart DragType | DragStop
+type Msg = Select | DragStart DragType
 
 ------------------------------------- init -------------------------------------
 
@@ -135,9 +135,6 @@ update mousePos anchorPos msg (data, state) = case (data, state) of
         (DragStart dType, TEditState) ->
             ((data, ESRect (RDragState (dType, mouseOffset dType mousePos anchorPos d.x d.y d.width 0) )), False)
 
-        -- when we stop dragging a box, report its new state back down to the server
-        (DragStop, TDragState _) -> ((data, ESText TEditState), True)
-
         _ -> ((data, state), False)
 
     (Rect d, ESRect s) ->
@@ -150,12 +147,22 @@ update mousePos anchorPos msg (data, state) = case (data, state) of
         (DragStart dType, REditState) ->
             ((data, ESRect (RDragState (dType, mouseOffset dType mousePos anchorPos d.x d.y d.width d.height) )), False)
 
-        -- when we stop dragging a box, report its new state back down to the server
-        (DragStop, RDragState _) -> ((data, ESRect REditState), True)
-
         _ -> ((data, state), False)
 
     _ -> ((data, state), False)
+
+-- again, the last return value is whether or not we need to send an update back
+mouseUp : ElementState -> Maybe ElementState
+mouseUp state = case state of
+    -- when we stop dragging a box, report its new state back down to the server
+    ESText s -> case s of
+        TDragState _ -> ESText TEditState |> Just
+        _ -> Nothing
+
+    ESRect s -> case s of
+        RDragState _ -> ESRect REditState |> Just
+        _ -> Nothing
+
 
 mouseOffset : DragType -> MousePos -> AnchorPos -> Float -> Float -> Float -> Float -> MouseOffset
 mouseOffset dType mousePos anchorPos x y w h = 
@@ -217,7 +224,7 @@ viewTextBox converter (k, (data, state)) =
 
         dragWidget = div [ css dragWidgetCss
                          , Events.onMouseDown (converter k (DragStart DMove))
-                         , Events.onMouseUp (converter k DragStop)] [ dragBox ]
+                         ] [ dragBox ]
 
     in let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.left (Css.px data.x), Css.top (Css.px data.y), Css.zIndex (Css.int 10) ]
                  ++ case state of
@@ -295,20 +302,19 @@ viewRect converter (k, (data, state)) =
                             RViewState -> [ Css.zIndex (Css.int (data.z + 10))
                                           , Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000") ]
 
-                            REditState -> [ Css.zIndex (Css.int (data.z + 10)), Tw.cursor_move
-                                          , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
+                            -- increase z-index when editing, so we're able to
+                            -- click on the drag handles when the element is
+                            -- positioned logically under another.
 
-                            -- increase z-index when dragging, so we don't try
-                            -- to release when under another element and miss
-                            -- the onMouseUp event.
+                            REditState -> [ Css.zIndex (Css.int (data.z + 1000)), Tw.cursor_move
+                                          , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
 
                             RDragState _ -> [ Css.zIndex (Css.int (data.z + 1000)), Tw.cursor_move
                                             , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
 
             events = case state of
                 RViewState -> [ Events.onClick (converter k Select) ]
-                _ -> [ Events.onMouseDown (converter k (DragStart DMove))
-                     , Events.onMouseUp (converter k DragStop) ]
+                _ -> [ Events.onMouseDown (converter k (DragStart DMove)) ]
 
             -- add 8 floating drag handles to the sides and corners
             children = case state of
@@ -343,7 +349,6 @@ viewDragHandle converter (k, data) (x, y) dir =
                        , Css.left (Css.px ((x + 1) * data.width / 2 - w / 2))
                        , cursor, Css.zIndex (Css.int 5) ]
 
-        events = [ Events.onMouseDown (converter k (DragStart dir))
-                 , Events.onMouseUp (converter k DragStop) ]
+        events = [ Events.onMouseDown (converter k (DragStart dir)) ]
 
     in div (style::events) []

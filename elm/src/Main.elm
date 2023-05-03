@@ -12,7 +12,7 @@ import Tailwind.Utilities as Tw
 import Css
 
 import Browser
-import Browser.Events exposing (onMouseMove, onKeyDown)
+import Browser.Events exposing (onMouseMove, onKeyDown, onMouseUp)
 import Browser.Dom exposing (getElement)
 import Browser.Navigation as Navigation
 
@@ -42,7 +42,7 @@ type alias PersistentState = Document
 type alias VolatileState = { anchorPos : AnchorPos
                            , mousePos : MousePos
                            , elements : Dict ElementId ElementState
-                           , canSelectText : Int -- 0 = yes, 1+ = no
+                           , canSelectText : Bool
                            }
 
 --------------------------------- message types --------------------------------
@@ -50,6 +50,7 @@ type alias VolatileState = { anchorPos : AnchorPos
 type Msg = LoadDocument (Result Http.Error PersistentState)
          | SetAnchorPos AnchorPos
          | ElementMsg (ElementId, Element.Msg)
+         | MouseUp -- stop dragging any elements currently being dragged
          | Deselect -- deselect all elements. <esc> key + when clicking on background (todo)
          | MouseMove MousePos -- fired when the mouse moves
          | Posted (Result Http.Error ())
@@ -81,7 +82,7 @@ initVolatileState data =
     { anchorPos = { x = 0, y = 0 }
     , mousePos = { x = 0, y = 0 }
     , elements = Dict.map (\_ -> Element.initState) data.elements
-    , canSelectText = 0
+    , canSelectText = True
     }
 
 
@@ -182,15 +183,25 @@ update msg model =
                 (dElements, vElements) = unzip <| fst res
 
                 -- if we're dragging something, don't allow text selection
-                canSelectText = volatiles.canSelectText + case e_msg of
-                    Element.DragStart _ -> 1
-                    Element.DragStop -> -1
-                    _ -> 0
+                canSelectText = volatiles.canSelectText && case e_msg of
+                        Element.DragStart _ -> False
+                        _ -> True
 
                 doc1       = { doc | elements = dElements }
                 volatiles1 = { volatiles | elements = vElements, canSelectText = canSelectText }
 
             in (Loaded (doc1, volatiles1), cmds)
+
+        (Loaded (doc, volatiles), MouseUp) ->
+            -- let _ = Debug.log "MouseUp" "" in
+            let (vElements, keys) = optionalUpdate Element.mouseUp volatiles.elements
+                -- cmds = List.map (\k -> updateElement doc.created k (Dict.get k doc.elements)) keys
+                cmds = List.map (\k -> Maybe.map (\data -> updateElement doc.created k data) (Dict.get k doc.elements)) keys
+                        |> List.filterMap identity
+                        |> Cmd.batch
+
+                volatiles1 = { volatiles | elements = vElements, canSelectText = True }
+            in (Loaded (doc, volatiles1), cmds)
 
 
 
@@ -237,7 +248,7 @@ view model =
         Loaded (doc, vol) ->
               let textBoxesHtml = List.map (viewElement (curry ElementMsg))
                                                   (Dict.toList <| zip doc.elements vol.elements)
-                  textSelection = if vol.canSelectText > 0 then [Tw.select_none] else []
+                  textSelection = if not vol.canSelectText then [Tw.select_none] else []
               in div [ css (textSelection ++ [ Tw.top_0, Tw.w_full, Tw.h_screen ]) ]
                      [ div [ Attributes.id "anchor-div", css [ Tw.top_0, Tw.absolute, Css.left (Css.vw 50) ] ]
                          textBoxesHtml
@@ -265,6 +276,9 @@ subscriptions _ =
             (field "pageY" Decode.float)
           ) |> Sub.map MouseMove
 
+        -- fire a MouseUp event whenever the mouse is released
+        mouseUpSub = onMouseUp (Decode.succeed MouseUp)
+
         -- subscribe to the escape key being pressed (damn this was harder than it should have been)
         escapeSub = onKeyDown (
                 Decode.field "key" 
@@ -277,7 +291,7 @@ subscriptions _ =
 
         sseErrorSub = sseError (\s -> SSEError s)
 
-    in Sub.batch [ mouseMoveSub, escapeSub, fileSub, sseErrorSub ]
+    in Sub.batch [ mouseMoveSub, mouseUpSub, escapeSub, fileSub, sseErrorSub ]
 
 
 

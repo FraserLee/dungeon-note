@@ -34,6 +34,14 @@ updateWithRes key f dict =
             let (v1, a) = f v
             in (Dict.insert key v1 dict, Just (v1, a))
 
+optionalUpdate : (v -> Maybe v) -> Dict comparable v -> (Dict comparable v, List comparable)
+optionalUpdate f dict = 
+    Dict.foldl (\k v (dict1, keys) ->
+        case f v of
+            Just v1 -> (Dict.insert k v1 dict1, k :: keys)
+            Nothing -> (Dict.insert k v dict1, keys)
+    ) (Dict.empty, []) dict
+
 curry : ((a, b) -> c) -> a -> b -> c
 curry f a b = f (a, b)
 

@@ -107,8 +107,8 @@
         - [x] Change sides from circles to invisible rectangles
         - [x] Make corners invisible
         - [x] Stop forwards-slide past end-point
-    - [ ] convert onMouseUp to just a mouseup event listener - no location dependence
-        - [ ] drag rects while still in background.
+    - [x] convert onMouseUp to just a mouseup event listener - no location dependence
+        - [x] fix canSelectText
     - [ ] rotation
         - white single-pixel wheel around the point of the thing, mouseover
     - [ ] move to wrapping interface, have textboxes use a limited version
