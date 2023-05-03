@@ -103,7 +103,7 @@
         - [x] Right circle
         - [x] Top and Bottom circles
         - [x] Rewrite to be less case-based
-        - [ ] Corner circles
+        - [x] Corner circles
         - [ ] Change sides from circles to invisible rectangles
         - [ ] Make corners invisible
     - [ ] convert onMouseUp to just a mouseup event listener - no location dependence
