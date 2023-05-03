@@ -303,7 +303,7 @@ viewRect converter (k, (data, state)) =
                             REditState -> [ Css.zIndex (Css.int (data.z + 1000)), Tw.cursor_move
                                           , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
 
-                            RDragState _ -> [ Css.zIndex (Css.int (data.z + 1000)), Tw.cursor_move
+                            RDragState _ -> [ Css.zIndex (Css.int (data.z + 1000)), Css.cursor Css.grabbing
                                             , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
 
             events = case state of
