@@ -102,7 +102,7 @@
         - [x] Left circle
         - [x] Right circle
         - [x] Top and Bottom circles
-        - [ ] Rewrite to be less manual
+        - [x] Rewrite to be less case-based
         - [ ] Corner circles
         - [ ] Change sides from circles to invisible rectangles
         - [ ] Make corners invisible

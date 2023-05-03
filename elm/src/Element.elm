@@ -36,8 +36,31 @@ type TextBoxState = TViewState | TEditState | TDragState MouseOffset
 type RectState = RViewState | REditState | RDragState (DragType, MouseOffset)
 type DragType = DMove | DLeft | DRight | DTop | DBot -- | DTopLeft | DTopRight | DBotLeft | DBotRight
 
+dTypeLeftFree : DragType -> Bool
+dTypeLeftFree dType = case dType of
+    DMove -> True
+    DLeft -> True
+    _ -> False
 
-type Msg = Select | DragStart DragType | DragStop 
+dTypeRightFree : DragType -> Bool
+dTypeRightFree dType = case dType of
+    DMove -> True
+    DRight -> True
+    _ -> False
+
+dTypeTopFree : DragType -> Bool
+dTypeTopFree dType = case dType of
+    DMove -> True
+    DTop -> True
+    _ -> False
+
+dTypeBotFree : DragType -> Bool
+dTypeBotFree dType = case dType of
+    DMove -> True
+    DBot -> True
+    _ -> False
+
+type Msg = Select | DragStart DragType | DragStop
 
 ------------------------------------- init -------------------------------------
 
@@ -66,38 +89,23 @@ mousemove {x, y} anchorPos (data, state) = case (data, state) of
             y1 = y - anchorPos.y - offsetY
         in (TextBox { d | x = x1, y = y1 }, state)
 
-    (Rect d, ESRect (RDragState (DMove, { offsetX, offsetY }))) ->
-        let x1 = x - anchorPos.x - offsetX
-            y1 = y - anchorPos.y - offsetY
-        in (Rect { d | x = x1, y = y1 }, state)
-
-    (Rect d, ESRect (RDragState (DLeft, { offsetX, offsetY }))) ->
-        -- let _ = Debug.log "left" [x - anchorPos.x, offsetX, d.x] in
+    (Rect d, ESRect (RDragState (dType, { offsetX, offsetY }))) ->
         let targetX = x - anchorPos.x - offsetX
-            targetW = d.width + d.x - targetX
-            w1 = max rectMinWidth targetW
-            x1 = d.x + d.width - w1
-        in (Rect { d | x = x1, width = w1 }, state)
+            targetY = y - anchorPos.y - offsetY
 
-    (Rect d, ESRect (RDragState (DRight, { offsetX, offsetY }))) ->
-        -- let _ = Debug.log "right" [x - anchorPos.x, offsetX, d.x] in
-        let targetW = x - anchorPos.x - d.x - offsetX
-            w1 = max rectMinWidth targetW
-        in (Rect { d | width = w1 }, state)
+            l = dTypeLeftFree dType
+            r = dTypeRightFree dType
+            t = dTypeTopFree dType
+            b = dTypeBotFree dType
 
-    (Rect d, ESRect (RDragState (DTop, { offsetX, offsetY }))) ->
-        -- let _ = Debug.log "top" [y - anchorPos.y, offsetY, d.y] in
-        let targetY = y - anchorPos.y - offsetY
-            targetH = d.height + d.y - targetY
-            h1 = max rectMinWidth targetH
-            y1 = d.y + d.height - h1
-        in (Rect { d | y = y1, height = h1 }, state)
+            x1 = if l then targetX else d.x
+            y1 = if t then targetY else d.y
+            x2 = if r then targetX else d.x + d.width
+            y2 = if b then targetY else d.y + d.height
+            w = max rectMinWidth <| if l && r then d.width else x2 - x1
+            h = max rectMinWidth <| if t && b then d.height else y2 - y1
 
-    (Rect d, ESRect (RDragState (DBot, { offsetX, offsetY }))) ->
-        -- let _ = Debug.log "bottom" [y - anchorPos.y, offsetY, d.y] in
-        let targetH = y - anchorPos.y - d.y - offsetY
-            h1 = max rectMinWidth targetH
-        in (Rect { d | height = h1 }, state)
+        in (Rect { d | x = x1, y = y1, width = w, height = h }, state)
 
     _ -> (data, state)
 
@@ -161,7 +169,7 @@ mouseOffset dType mousePos anchorPos x y w h = {
 ------------------------------------- view -------------------------------------
 
 viewElement : (ElementId -> Msg -> msg) -> (ElementId, (Element, ElementState)) -> Html msg
-viewElement converter (k, (e, s)) = 
+viewElement converter (k, (e, s)) =
     case (s, e) of
         (ESText state, TextBox data) -> viewTextBox converter (k, (data, state))
         (ESRect state, Rect data) -> viewRect converter (k, (data, state))
@@ -182,8 +190,8 @@ viewTextBox : (ElementId -> Msg -> msg) -> (ElementId, ({ x : Float, y : Float, 
 viewTextBox converter (k, (data, state)) =
 
     let dragIcon = div [ css [ Tw.text_white, Tw.cursor_move
-                             , Css.width (Css.pct 86), Css.height (Css.pct 86) ] ] 
-                       [ FeatherIcons.move 
+                             , Css.width (Css.pct 86), Css.height (Css.pct 86) ] ]
+                       [ FeatherIcons.move
                        |> FeatherIcons.withSize 100
                        |> FeatherIcons.withSizeUnit "%"
                        |> FeatherIcons.toHtml [] |> Html.Styled.fromUnstyled ]
@@ -211,7 +219,7 @@ viewTextBox converter (k, (data, state)) =
                       TViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
                       _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
 
-           contents = List.map viewTextBlock data.data 
+           contents = List.map viewTextBlock data.data
                            ++ (case state of
                                     TViewState -> []
                                     _ -> [ dragWidget ])
@@ -221,7 +229,7 @@ viewTextBox converter (k, (data, state)) =
 
 
 viewTextBlock : TextBlock -> Html msg
-viewTextBlock block = 
+viewTextBlock block =
 
     let viewListItem item = case item of
             OrderedList _ -> viewTextBlock item
@@ -232,7 +240,7 @@ viewTextBlock block =
 
         Paragraph { chunks } -> List.map viewTextChunk chunks |> p []
 
-        Header { level, chunks } -> 
+        Header { level, chunks } ->
             List.map viewTextChunk chunks |> case level of
                 1 -> h1 []
                 2 -> h2 []
@@ -273,7 +281,7 @@ viewTextChunk chunk = case chunk of
 
 viewRect : (ElementId -> Msg -> msg) -> (ElementId, ({ x : Float, y : Float, width : Float, height : Float, z : Int, color : String }, RectState)) -> Html msg
 viewRect converter (k, (data, state)) =
-    
+
         let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.height (Css.px data.height)
                         , Css.left (Css.px data.x), Css.top (Css.px data.y)
                         , Css.backgroundColor (Css.hex data.color) ]
