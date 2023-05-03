@@ -29,10 +29,7 @@ type alias ElementId = String
 
 type alias MouseOffset = { offsetX : Float, offsetY : Float }
 
-type ElementState = ESText TextBoxState | ESRect RectState
-
-type TextBoxState = TViewState | TEditState | TDragState MouseOffset
-
+type ElementState = ESRect RectState -- | ESLine LineState
 type RectState = RViewState | REditState | RDragState (DragType, MouseOffset)
 type DragType = DMove | DLeft | DRight | DTop | DBot | DTopLeft | DTopRight | DBotLeft | DBotRight
 
@@ -74,8 +71,8 @@ type Msg = Select | DragStart DragType
 
 initState : Element -> ElementState
 initState element = case element of
-    TextBox _ -> ESText TViewState
-    Line _ -> ESText TViewState
+    TextBox _ -> ESRect RViewState
+    Line _ -> ESRect RViewState
     Rect _ -> ESRect RViewState
 
 --------------------------------- update logic ---------------------------------
@@ -85,19 +82,12 @@ initState element = case element of
 
 deselect : (Element, ElementState) -> (Element, ElementState)
 deselect (data, state) = case state of
-    ESText _ -> (data, ESText TViewState)
     ESRect _ -> (data, ESRect RViewState)
 
 -- if a box is selected and in drag mode, update its position
 mousemove : MousePos -> AnchorPos -> (Element, ElementState) -> (Element, ElementState)
-mousemove {x, y} anchorPos (data, state) = case (data, state) of
-
-    (TextBox d, ESText (TDragState { offsetX, offsetY })) ->
-        let x1 = x - anchorPos.x - offsetX
-            y1 = y - anchorPos.y - offsetY
-        in (TextBox { d | x = x1, y = y1 }, state)
-
-    (Rect d, ESRect (RDragState (dType, { offsetX, offsetY }))) ->
+mousemove {x, y} anchorPos (data, state) = case state of
+    ESRect (RDragState (dType, { offsetX, offsetY })) ->
         let targetX = x - anchorPos.x - offsetX
             targetY = y - anchorPos.y - offsetY
 
@@ -106,19 +96,32 @@ mousemove {x, y} anchorPos (data, state) = case (data, state) of
             t = dTypeTopFree dType
             b = dTypeBotFree dType
 
-            x1 = if l then targetX else d.x
-            y1 = if t then targetY else d.y
-            x2 = if r then targetX else d.x + d.width
-            y2 = if b then targetY else d.y + d.height
+            (x0, y0, w0) = case data of
+                Rect d -> (d.x, d.y, d.width)
+                TextBox d -> (d.x, d.y, d.width)
+                _ -> (0, 0, 0)
 
-            w = max rectMinWidth <| if l && r then d.width else x2 - x1
-            h = max rectMinWidth <| if t && b then d.height else y2 - y1
+            h0 = case data of
+                Rect d -> d.height
+                TextBox _ -> 100
+                _ -> 0
+
+            x1 = if l then targetX else x0
+            y1 = if t then targetY else y0
+            x2 = if r then targetX else x0 + w0
+            y2 = if b then targetY else y0 + h0
+
+            w = max rectMinWidth <| if l && r then w0 else x2 - x1
+            h = max rectMinWidth <| if t && b then h0 else y2 - y1
 
             -- Stop forwards-slide past end-point
             x3 = if r then x1 else min x1 (x2 - rectMinWidth)
             y3 = if b then y1 else min y1 (y2 - rectMinWidth)
 
-        in (Rect { d | x = x3, y = y3, width = w, height = h }, state)
+        in case data of
+            Rect d -> (Rect { d | x = x3, y = y3, width = w, height = h }, state)
+            TextBox d -> (TextBox { d | x = x3, y = y3, width = w }, state)
+            _ -> (data, state)
 
     _ -> (data, state)
 
@@ -128,37 +131,28 @@ mousemove {x, y} anchorPos (data, state) = case (data, state) of
 
 update : MousePos -> AnchorPos -> Msg -> (Element, ElementState) -> ((Element, ElementState), Bool)
 update mousePos anchorPos msg (data, state) = case (data, state) of
-    (TextBox d, ESText s) -> case (msg, s) of
 
-        (Select, TViewState) -> ((data, ESText TEditState), False)
-
-        (DragStart dType, TEditState) ->
-            ((data, ESRect (RDragState (dType, mouseOffset dType mousePos anchorPos d.x d.y d.width 0) )), False)
-
-        _ -> ((data, state), False)
-
-    (Rect d, ESRect s) ->
-        let _ = Debug.log "rect" (msg, s) in
-
-        case (msg, s) of
-
+    (Rect d, ESRect s) -> case (msg, s) of
         (Select, RViewState) -> ((data, ESRect REditState), False)
-
         (DragStart dType, REditState) ->
             ((data, ESRect (RDragState (dType, mouseOffset dType mousePos anchorPos d.x d.y d.width d.height) )), False)
 
         _ -> ((data, state), False)
 
+    (TextBox d, ESRect s) -> case (msg, s) of
+        (Select, RViewState) -> ((data, ESRect REditState), False)
+        (DragStart dType, REditState) ->
+            ((data, ESRect (RDragState (dType, mouseOffset dType mousePos anchorPos d.x d.y d.width 0) )), False)
+
+        _ -> ((data, state), False)
+
     _ -> ((data, state), False)
 
--- again, the last return value is whether or not we need to send an update back
+-- Just newState = update the element's state and send result back to server
+-- Nothing = don't change state or send anything back down
 mouseUp : ElementState -> Maybe ElementState
 mouseUp state = case state of
     -- when we stop dragging a box, report its new state back down to the server
-    ESText s -> case s of
-        TDragState _ -> ESText TEditState |> Just
-        _ -> Nothing
-
     ESRect s -> case s of
         RDragState _ -> ESRect REditState |> Just
         _ -> Nothing
@@ -183,7 +177,7 @@ mouseOffset dType mousePos anchorPos x y w h =
 viewElement : (ElementId -> Msg -> msg) -> (ElementId, (Element, ElementState)) -> Html msg
 viewElement converter (k, (e, s)) =
     case (s, e) of
-        (ESText state, TextBox data) -> viewTextBox converter (k, (data, state))
+        (ESRect state, TextBox data) -> viewTextBox converter (k, (data, state))
         (ESRect state, Rect data) -> viewRect converter (k, (data, state))
         _ -> text "other object types not yet implemented"
 
@@ -198,7 +192,7 @@ viewElement converter (k, (e, s)) =
 
 --------------------------------- markdown view --------------------------------
 
-viewTextBox : (ElementId -> Msg -> msg) -> (ElementId, ({ x : Float, y : Float, width : Float, data : List (TextBlock) }, TextBoxState)) -> Html msg
+viewTextBox : (ElementId -> Msg -> msg) -> (ElementId, ({ x : Float, y : Float, width : Float, data : List (TextBlock) }, RectState)) -> Html msg
 viewTextBox converter (k, (data, state)) =
 
     let dragIcon = div [ css [ Tw.text_white, Tw.cursor_move
@@ -211,7 +205,7 @@ viewTextBox converter (k, (data, state)) =
         dragBox = div [ css <| [ Tw.flex, Tw.justify_center, Tw.items_center
                                , Css.width (Css.px 20), Css.height (Css.px 20) ]
                                ++ (case state of
-                                       TDragState _ -> [ Tw.bg_red_500 ]
+                                       RDragState _ -> [ Tw.bg_red_500 ]
                                        _ -> [ Tw.bg_black, Css.hover [ Tw.bg_red_700 ] ] )
                       ] [ dragIcon ]
 
@@ -228,12 +222,12 @@ viewTextBox converter (k, (data, state)) =
 
     in let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.left (Css.px data.x), Css.top (Css.px data.y), Css.zIndex (Css.int 10) ]
                  ++ case state of
-                      TViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
+                      RViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
                       _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
 
            contents = List.map viewTextBlock data.data
                            ++ (case state of
-                                    TViewState -> []
+                                    RViewState -> []
                                     _ -> [ dragWidget ])
 
     in div [ style, Events.onClick (converter k Select) ] contents

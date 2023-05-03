@@ -89,16 +89,11 @@
 - [ ] Split example file into one focused entirely on markdown, and a second
       more literate one which demonstrates how to structure a document.
 
-- [ ] Further Textbox edit-mode capabilities
-    - [ ] Proper left-right position / resize
-    - [ ] rotation
-    - [ ] deselect when clicking background
-
 - [ ] Rectangles
     - [x] parse
     - [x] render
     - [x] drag position
-    - [ ] drag edge / corner to resize
+    - [x] drag edge / corner to resize
         - [x] Left circle
         - [x] Right circle
         - [x] Top and Bottom circles
@@ -109,11 +104,13 @@
         - [x] Stop forwards-slide past end-point
     - [x] convert onMouseUp to just a mouseup event listener - no location dependence
         - [x] fix canSelectText
-    - [ ] rotation
-        - white single-pixel wheel around the point of the thing, mouseover
     - [ ] move to wrapping interface, have textboxes use a limited version
           of it with only left-right edges.
-
+        - [x] unify underlying models
+        - [ ] unify view function wrapping boxes, dispatch to inner view
+        - [ ] add in constrains in outer that make vertical not present for text
+    - [ ] rotation
+        - white single-pixel wheel around the point of the thing, mouseover
 
 - [ ] deselect when clicking background
 
