@@ -19,7 +19,7 @@ import Css
 ----------------------------------- constants ----------------------------------
 
 rectMinWidth = 40
-dragIconSize = 10
+resizeRegionSize = 10
 
 
 
@@ -329,13 +329,14 @@ viewDragHandle converter (k, data) (x, y) dir =
             DTopRight -> Css.cursor Css.neswResize
             DBotLeft  -> Css.cursor Css.neswResize
 
-        style = css <| [ Css.width (Css.px dragIconSize), Css.height (Css.px dragIconSize)
+        h = if dir == DLeft || dir == DRight then data.height else resizeRegionSize
+        w = if dir == DTop || dir == DBot then data.width else resizeRegionSize
+
+        style = css <| [ Css.width (Css.px w), Css.height (Css.px h)
                        , Tw.absolute
-                       , Css.top (Css.px ((y + 1) * data.height / 2 - dragIconSize / 2))
-                       , Css.left (Css.px ((x + 1) * data.width / 2 - dragIconSize / 2))
-                       , Css.backgroundColor (Css.rgb 203 213 225)
-                       , Tw.rounded_full, cursor
-                       , Css.zIndex (Css.int 5) ]
+                       , Css.top (Css.px ((y + 1) * data.height / 2 - h / 2))
+                       , Css.left (Css.px ((x + 1) * data.width / 2 - w / 2))
+                       , cursor, Css.zIndex (Css.int 5) ]
 
         events = [ Events.onMouseDown (converter k (DragStart dir))
                  , Events.onMouseUp (converter k DragStop) ]

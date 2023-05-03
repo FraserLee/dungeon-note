@@ -104,8 +104,9 @@
         - [x] Top and Bottom circles
         - [x] Rewrite to be less case-based
         - [x] Corner circles
-        - [ ] Change sides from circles to invisible rectangles
-        - [ ] Make corners invisible
+        - [x] Change sides from circles to invisible rectangles
+        - [x] Make corners invisible
+        - [ ] Stop forwards-slide past end-point
     - [ ] convert onMouseUp to just a mouseup event listener - no location dependence
         - [ ] drag rects while still in background.
     - [ ] rotation
