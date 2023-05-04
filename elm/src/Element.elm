@@ -4,7 +4,6 @@ import Utils exposing (..)
 import Bindings exposing (..)
 
 import Tailwind.Utilities as Tw
-import FeatherIcons
 
 import Html.Styled exposing (Html, div, span, p, text, h1, h2, h3, h4, h5, h6
                                  , b, i, u, s, a, img, code, li, ol, ul
@@ -18,10 +17,11 @@ import Css
 
 ----------------------------------- constants ----------------------------------
 
+rectMinWidth : Float
 rectMinWidth = 20
+
+resizeRegionSize : Float
 resizeRegionSize = 10
-
-
 
 ------------------------------------- types ------------------------------------
 
@@ -103,7 +103,7 @@ mousemove {x, y} anchorPos (data, state) = case state of
 
             h0 = case data of
                 Rect d -> d.height
-                TextBox _ -> 100
+                TextBox _ -> 100 -- just needs to be some non-zero value
                 _ -> 0
 
             x1 = if l then targetX else x0
@@ -170,8 +170,6 @@ mouseOffset dType mousePos anchorPos x y w h =
     }
 
 
-
-
 ------------------------------------- view -------------------------------------
 
 viewElement : (ElementId -> Msg -> msg) -> (ElementId, (Element, ElementState)) -> Html msg
@@ -182,56 +180,106 @@ viewElement converter (k, (e, s)) =
         _ -> text "other object types not yet implemented"
 
 
+----------------------------- stretchy bounding box ----------------------------
+
+viewBounding : (ElementId -> Msg -> msg) -> Html msg -> (ElementId, ({ x : Float, y : Float, width : Float, height : Maybe Float, z : Int }, RectState)) -> Html msg
+viewBounding converter content (k, (data, state)) =
+
+        let style = css <| [ Tw.absolute, Css.width (Css.px data.width)
+                           , Css.left (Css.px data.x), Css.top (Css.px data.y) ]
+                           ++ ( case data.height of
+                               Just h -> [ Css.height (Css.px h) ]
+                               Nothing -> []
+                           ) ++ ( case state of
+
+                               RViewState -> [ Css.zIndex (Css.int (data.z + 10))
+                                             , Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000") ]
+
+                               -- increase z-index when editing, so we're able to
+                               -- click on the drag handles when the element is
+                               -- positioned logically under another.
+
+                               REditState -> [ Css.zIndex (Css.int (data.z + 1000)), Tw.cursor_move
+                                             , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
+
+                               RDragState _ -> [ Css.zIndex (Css.int (data.z + 1000)), Css.cursor Css.grabbing
+                                               , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
+                           )
+
+            events = case state of
+                RViewState -> [ Events.onClick (converter k Select) ]
+                _ -> [ Events.onMouseDown (converter k (DragStart DMove)) ]
+
+            -- add 8 floating drag handles to the sides and corners
+            children = case state of
+                RViewState -> []
+                _ -> [ (-1, 0, DLeft), (1, 0, DRight), (0, -1, DTop), (0, 1, DBot),
+                       (-1, -1, DTopLeft), (1, 1, DBotRight), (1, -1, DTopRight), (-1, 1, DBotLeft) ]
+                     |> List.map (\(x, y, dir) -> viewDragHandle converter k (x, y) dir)
+
+        in div (style::events) (content::children)
 
 
+viewDragHandle : (ElementId -> Msg -> msg) -> ElementId -> (Float, Float) -> DragType -> Html msg
+viewDragHandle converter k (x, y) dir =
 
+    let cursor = case dir of
+            DMove     -> Css.cursor Css.move
+            DLeft     -> Css.cursor Css.ewResize
+            DRight    -> Css.cursor Css.ewResize
+            DTop      -> Css.cursor Css.nsResize
+            DBot      -> Css.cursor Css.nsResize
+            DTopLeft  -> Css.cursor Css.nwseResize
+            DBotRight -> Css.cursor Css.nwseResize
+            DTopRight -> Css.cursor Css.neswResize
+            DBotLeft  -> Css.cursor Css.neswResize
 
+        h = if dir == DLeft || dir == DRight then Tw.h_full else (Css.height <| Css.px resizeRegionSize)
+        w = if dir == DTop || dir == DBot then Tw.w_full else (Css.width <| Css.px resizeRegionSize)
 
+        t = if dir == DBot || dir == DBotLeft || dir == DBotRight then Tw.bottom_0 else Tw.top_0
+        l = if dir == DLeft || dir == DTopLeft || dir == DBotLeft then Tw.left_0 else Tw.right_0
 
+        style = css <| [ Tw.absolute
+                       , h, w
+                       , t, l
+                       , cursor, Css.zIndex (Css.int 5) ]
 
+        events = [ Events.onMouseDown (converter k (DragStart dir)) ]
+
+    in div (style::events) []
+
+------------------------------------- rect -------------------------------------
+
+viewRect : (ElementId -> Msg -> msg) -> (ElementId, ({ x : Float, y : Float, width : Float, height : Float, z : Int, color : String }, RectState)) -> Html msg
+viewRect converter (k, (data, state)) =
+    let content = div [css <| [Css.backgroundColor (Css.hex data.color), Tw.w_full, Tw.h_full]] []
+    in viewBounding converter content (k, ({
+            x      = data.x,
+            y      = data.y,
+            z      = data.z,
+            width  = data.width,
+            height = Just data.height
+    } , state))
 
 --------------------------------- markdown view --------------------------------
 
 viewTextBox : (ElementId -> Msg -> msg) -> (ElementId, ({ x : Float, y : Float, width : Float, data : List (TextBlock) }, RectState)) -> Html msg
 viewTextBox converter (k, (data, state)) =
+    let padding = 18 in
+    let content = div [css <| [ Css.width (Css.px data.width)
+                              , Tw.h_full
+                              , Css.paddingLeft (Css.px padding)
+                              , Css.paddingRight (Css.px padding)
+                          ]] <| List.map viewTextBlock data.data
 
-    let dragIcon = div [ css [ Tw.text_white, Tw.cursor_move
-                             , Css.width (Css.pct 86), Css.height (Css.pct 86) ] ]
-                       [ FeatherIcons.move
-                       |> FeatherIcons.withSize 100
-                       |> FeatherIcons.withSizeUnit "%"
-                       |> FeatherIcons.toHtml [] |> Html.Styled.fromUnstyled ]
-
-        dragBox = div [ css <| [ Tw.flex, Tw.justify_center, Tw.items_center
-                               , Css.width (Css.px 20), Css.height (Css.px 20) ]
-                               ++ (case state of
-                                       RDragState _ -> [ Tw.bg_red_500 ]
-                                       _ -> [ Tw.bg_black, Css.hover [ Tw.bg_red_700 ] ] )
-                      ] [ dragIcon ]
-
-        -- invisible selector that's a bit bigger than the icon itself
-        dragWidgetCss = [ Tw.absolute, Tw.flex, Tw.justify_center, Tw.items_center
-                        , Tw.bg_transparent, Tw.cursor_move
-                        , Css.top (Css.px -20), Css.left (Css.px -20)
-                        , Css.width (Css.px 40), Css.height (Css.px 40)
-                        , Css.zIndex (Css.int 5) ]
-
-        dragWidget = div [ css dragWidgetCss
-                         , Events.onMouseDown (converter k (DragStart DMove))
-                         ] [ dragBox ]
-
-    in let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.left (Css.px data.x), Css.top (Css.px data.y), Css.zIndex (Css.int 10) ]
-                 ++ case state of
-                      RViewState -> [ Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000"), Tw.px_4 ]
-                      _ -> [ Tw.border_2, Tw.border_dashed, Tw.border_red_400, Tw.px_4 ]
-
-           contents = List.map viewTextBlock data.data
-                           ++ (case state of
-                                    RViewState -> []
-                                    _ -> [ dragWidget ])
-
-    in div [ style, Events.onClick (converter k Select) ] contents
-
+    in viewBounding converter content (k, ({
+            x      = data.x,
+            y      = data.y,
+            z      = 0,
+            width  = data.width + 2 * padding,
+            height = Nothing
+    } , state))
 
 
 viewTextBlock : TextBlock -> Html msg
@@ -282,67 +330,3 @@ viewTextChunk chunk = case chunk of
     Text(text)               -> span [] [ Html.Styled.text text ]
     NewLine                  -> br [] []
 
-
-------------------------------------- rect -------------------------------------
-
-viewRect : (ElementId -> Msg -> msg) -> (ElementId, ({ x : Float, y : Float, width : Float, height : Float, z : Int, color : String }, RectState)) -> Html msg
-viewRect converter (k, (data, state)) =
-
-        let style = css <| [ Tw.absolute, Css.width (Css.px data.width), Css.height (Css.px data.height)
-                        , Css.left (Css.px data.x), Css.top (Css.px data.y)
-                        , Css.backgroundColor (Css.hex data.color) ]
-                        ++ case state of
-
-                            RViewState -> [ Css.zIndex (Css.int (data.z + 10))
-                                          , Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000") ]
-
-                            -- increase z-index when editing, so we're able to
-                            -- click on the drag handles when the element is
-                            -- positioned logically under another.
-
-                            REditState -> [ Css.zIndex (Css.int (data.z + 1000)), Tw.cursor_move
-                                          , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
-
-                            RDragState _ -> [ Css.zIndex (Css.int (data.z + 1000)), Css.cursor Css.grabbing
-                                            , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
-
-            events = case state of
-                RViewState -> [ Events.onClick (converter k Select) ]
-                _ -> [ Events.onMouseDown (converter k (DragStart DMove)) ]
-
-            -- add 8 floating drag handles to the sides and corners
-            children = case state of
-                RViewState -> []
-                _ -> [ (-1, 0, DLeft), (1, 0, DRight), (0, -1, DTop), (0, 1, DBot),
-                       (-1, -1, DTopLeft), (1, 1, DBotRight), (1, -1, DTopRight), (-1, 1, DBotLeft) ]
-                     |> List.map (\(x, y, dir) -> viewDragHandle converter (k, {width = data.width, height = data.height}) (x, y) dir)
-
-        in div (style::events) children
-
-
-viewDragHandle : (ElementId -> Msg -> msg) -> (ElementId, { width : Float, height : Float }) -> (Float, Float) -> DragType -> Html msg
-viewDragHandle converter (k, data) (x, y) dir =
-
-    let cursor = case dir of
-            DMove     -> Css.cursor Css.move
-            DLeft     -> Css.cursor Css.ewResize
-            DRight    -> Css.cursor Css.ewResize
-            DTop      -> Css.cursor Css.nsResize
-            DBot      -> Css.cursor Css.nsResize
-            DTopLeft  -> Css.cursor Css.nwseResize
-            DBotRight -> Css.cursor Css.nwseResize
-            DTopRight -> Css.cursor Css.neswResize
-            DBotLeft  -> Css.cursor Css.neswResize
-
-        h = if dir == DLeft || dir == DRight then data.height else resizeRegionSize
-        w = if dir == DTop || dir == DBot then data.width else resizeRegionSize
-
-        style = css <| [ Css.width (Css.px w), Css.height (Css.px h)
-                       , Tw.absolute
-                       , Css.top (Css.px ((y + 1) * data.height / 2 - h / 2))
-                       , Css.left (Css.px ((x + 1) * data.width / 2 - w / 2))
-                       , cursor, Css.zIndex (Css.int 5) ]
-
-        events = [ Events.onMouseDown (converter k (DragStart dir)) ]
-
-    in div (style::events) []

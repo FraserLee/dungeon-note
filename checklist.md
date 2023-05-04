@@ -104,11 +104,11 @@
         - [x] Stop forwards-slide past end-point
     - [x] convert onMouseUp to just a mouseup event listener - no location dependence
         - [x] fix canSelectText
-    - [ ] move to wrapping interface, have textboxes use a limited version
+    - [x] move to wrapping interface, have textboxes use a limited version
           of it with only left-right edges.
         - [x] unify underlying models
-        - [ ] unify view function wrapping boxes, dispatch to inner view
-        - [ ] add in constrains in outer that make vertical not present for text
+        - [x] unify view function wrapping boxes, dispatch to inner view
+        - [x] add in constrains in outer that make vertical not present for text
     - [ ] rotation
         - white single-pixel wheel around the point of the thing, mouseover
 
