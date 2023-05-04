@@ -193,17 +193,20 @@ viewBounding converter content (k, (data, state)) =
                            ) ++ ( case state of
 
                                RViewState -> [ Css.zIndex (Css.int (data.z + 10))
-                                             , Tw.border_2, Tw.border_dashed, Css.borderColor (Css.hex "00000000") ]
+                                             , Css.borderWidth (Css.px 1)
+                                             , Tw.border_dashed, Css.borderColor (Css.hex "00000000") ]
 
                                -- increase z-index when editing, so we're able to
                                -- click on the drag handles when the element is
                                -- positioned logically under another.
 
                                REditState -> [ Css.zIndex (Css.int (data.z + 1000)), Tw.cursor_move
-                                             , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
+                                             , Css.borderWidth (Css.px 1)
+                                             , Tw.border_dashed, Tw.border_white ]
 
                                RDragState _ -> [ Css.zIndex (Css.int (data.z + 1000)), Css.cursor Css.grabbing
-                                               , Tw.border_2, Tw.border_dashed, Tw.border_red_400 ]
+                                               , Css.borderWidth (Css.px 1)
+                                               , Tw.border_dashed, Tw.border_white ]
                            )
 
             events = case state of
@@ -237,8 +240,8 @@ viewDragHandle converter k (x, y) dir =
         h = if dir == DLeft || dir == DRight then Tw.h_full else (Css.height <| Css.px resizeRegionSize)
         w = if dir == DTop || dir == DBot then Tw.w_full else (Css.width <| Css.px resizeRegionSize)
 
-        t = if dir == DBot || dir == DBotLeft || dir == DBotRight then Tw.bottom_0 else Tw.top_0
-        l = if dir == DLeft || dir == DTopLeft || dir == DBotLeft then Tw.left_0 else Tw.right_0
+        t = if dir == DBot || dir == DBotLeft || dir == DBotRight then Css.bottom (Css.px (-resizeRegionSize / 2)) else Css.top (Css.px (-resizeRegionSize / 2))
+        l = if dir == DLeft || dir == DTopLeft || dir == DBotLeft then Css.left (Css.px (-resizeRegionSize / 2)) else Css.right (Css.px (-resizeRegionSize / 2))
 
         style = css <| [ Tw.absolute
                        , h, w
