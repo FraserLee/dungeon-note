@@ -83,7 +83,10 @@ ol > li { margin: 0 0 0 17px; }
 li > p { margin: 0; }
 
 
-a { text-decoration: underline; }
+a { 
+    text-decoration: underline; 
+    color: unset;
+}
 a:hover { text-decoration: none; }
 
 blockquote {

@@ -122,7 +122,7 @@
 
 - [ ] Z-order on arbitrary elements with forwards / backwards buttons
 
-- [ ] fix styling on links
+- [x] fix styling on links
 - [ ] Local File Images
 - [ ] Tables in markdown
 - [ ] Swap last space for &nbsp; before each newline.
