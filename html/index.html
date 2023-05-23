@@ -11,14 +11,17 @@
   <script src="elm.js"></script>
   <script> 
 
-      // how to break all elm's security guarantees in 18 lines
+      // break all elm's security guarantees in less than 20 lines
       // https://ellie-app.com/88mbXKDkYKPa1
       customElements.define('inner-html', class extends HTMLElement {
 
           constructor() {
               super();  
               const shadowRoot = this.attachShadow({mode: 'open'});
-              this.render = () => { shadowRoot.innerHTML = this.content; }
+              this.render = () => { 
+                  shadowRoot.innerHTML = '<link rel="stylesheet" href="style.css">';
+                  shadowRoot.innerHTML += this.content; 
+              }
           }
 
           get content() { return this.getAttribute('content') || ''; }

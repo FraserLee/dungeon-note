@@ -686,7 +686,7 @@ fn split_math(text: &str) -> Option<(&str, &str, &str)> {
 fn chunk_math(mut text: &str) -> Vec<TextChunk> {
     let mut chunks: Vec<TextChunk> = Vec::new();
 
-    let opts = katex::Opts::builder().output_type(katex::OutputType::Mathml).display_mode(true).build().unwrap();
+    let opts = katex::Opts::builder().output_type(katex::OutputType::HtmlAndMathml).display_mode(true).build().unwrap();
 
     while let Some((before, math, after)) = split_math(text) {
         chunks.extend(chunk_style(before));
