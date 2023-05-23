@@ -10,6 +10,28 @@
   <pre id="elm"></pre>
   <script src="elm.js"></script>
   <script> 
+
+      // how to break all elm's security guarantees in 18 lines
+      // https://ellie-app.com/88mbXKDkYKPa1
+      customElements.define('inner-html', class extends HTMLElement {
+
+          constructor() {
+              super();  
+              const shadowRoot = this.attachShadow({mode: 'open'});
+              this.render = () => { shadowRoot.innerHTML = this.content; }
+          }
+
+          get content() { return this.getAttribute('content') || ''; }
+          set content(val) { this.shadowRoot.innerHtml = val; }
+
+          static get observedAttributes() { return ['content']; }
+
+          connectedCallback() { this.render(); }
+          attributeChangedCallback() { this.render(); }
+
+      });
+
+
       var app = Elm.Main.init({ node: document.getElementById("elm") }); 
 
       var fileChangeSource = new EventSource("/file_change");

@@ -86,10 +86,7 @@
         - [x] receive error state in elm
     - [x] overlay with reload button
 
-- [ ] Split example file into one focused entirely on markdown, and a second
-      more literate one which demonstrates how to structure a document.
-
-- [ ] Rectangles
+- [x] Rectangles
     - [x] parse
     - [x] render
     - [x] drag position
@@ -109,8 +106,20 @@
         - [x] unify underlying models
         - [x] unify view function wrapping boxes, dispatch to inner view
         - [x] add in constrains in outer that make vertical not present for text
-    - [ ] rotation
-        - white single-pixel wheel around the point of the thing, mouseover
+
+- [ ] Math (both asciimath and latex would be ideal)
+    - generate html on the backend, don't have anything like MathJax
+      running on the site
+    - [ ] Inline math as a TextChuck
+    - [ ] Block mode math (TextBlock)
+    - [ ] support `\def` between equations, other stateful things
+    - [ ] default def linking
+
+- [ ] Rectangle Rotation
+    - white single-pixel wheel around the point of the thing, mouseover
+
+- [ ] Split example file into one focused entirely on markdown, and a second
+      more literate one which demonstrates how to structure a document.
 
 - [ ] deselect when clicking background
 
@@ -129,11 +138,6 @@
         - "p, h1, h2, h3, h4, h5, h6, li, dt, dd"
 
 - [ ] Re-add menu bar
-- [ ] Math (both asciimath and latex would be ideal)
-    - generate html on the backend, don't have anything like MathJax
-      running on the site
-    - [ ] support `\def` between equations, other stateful things
-    - [ ] default def linking
 - [ ] Memoize markdown parsing
 - [ ] Highlight CodeBlocks
 - [ ] Executable CodeBlocks

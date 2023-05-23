@@ -15,6 +15,12 @@ import Html.Styled.Attributes as Attributes exposing (css)
 
 import Css
 
+import Html
+import Html.Attributes
+
+innerHtml : String -> Html.Html msg -- TODO: convert to styled primitives
+innerHtml content = Html.node "inner-html" [ Html.Attributes.attribute "content" content ] []
+
 ----------------------------------- constants ----------------------------------
 
 rectMinWidth : Float
@@ -322,10 +328,12 @@ viewTextBlock block =
         HorizontalRule -> hr [] []
 
 
+
 viewTextChunk : TextChunk -> Html msg
 viewTextChunk chunk = case chunk of
     Link { title, url }      -> a [ Attributes.href url ] <| List.map viewTextChunk title
     Code { text }            -> code [] [ Html.Styled.text text ]
+    Math { text }            -> Html.Styled.fromUnstyled <| innerHtml text
     Bold { chunks }          -> b [] <| List.map viewTextChunk chunks
     Italic { chunks }        -> i [] <| List.map viewTextChunk chunks
     Strikethrough { chunks } -> s [] <| List.map viewTextChunk chunks

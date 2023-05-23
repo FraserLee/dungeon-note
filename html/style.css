@@ -133,3 +133,5 @@ pre > code {
 button {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
+
+inner-html { display: inline-block; }

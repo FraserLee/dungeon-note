@@ -47,11 +47,11 @@ impl Element {
 
         // !!!!Text!x:-55.0!y:30.0!width:700.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         match self {
-            Element::Line { x1, y1, x2, y2 } => 
+            Element::Line { x1, y1, x2, y2 } =>
                 format!("{:!<80}\n", format!("!!!!Line!x1:{:.1}!y1:{:.1}!x2:{:.1}!y2:{:.1}", x1, y1, x2, y2)),
 
             Element::Rect { x, y, width, height, z, color } =>
-                format!("{:!<80}\n", 
+                format!("{:!<80}\n",
                     format!("!!!!Rect!x:{:.1}!y:{:.1}!width:{:.1}!height:{:.1}!z:{}!color:{}",
                             x, y, width, height, z, color)
                     ),
@@ -80,6 +80,7 @@ pub enum TextBlock {
 pub enum TextChunk {
     Link { title: Vec<TextChunk>, url: String },
     Code { text: String },
+    Math { text: String },
     Bold { chunks: Vec<TextChunk> },
     Italic { chunks: Vec<TextChunk> },
     Underline { chunks: Vec<TextChunk> },
@@ -153,7 +154,7 @@ enum TextBlockPrecursor<'a> {
     // n-1 chunks of vertical space (possibly combined into one element for efficiency later?) That
     // way this:
     //
-    //     # title 
+    //     # title
     //     some text
     //
     // will look the same as this:
@@ -345,7 +346,7 @@ pub fn parse(text: &str) -> Document {
 
             _ => panic!("unknown element type: {}", precursor.type_),
         };
-    
+
         document.elements.insert(key, element);
     }
 
@@ -410,7 +411,7 @@ fn split_scope<'a>(text: &'a str, indent: usize, test_first_line: bool) -> (&'a 
         if (i != 0 || test_first_line) && count_indent(line) < indent { break; }
         index += line.len() + 1;
     }
-    if index < text.len() { (&text[..index], &text[index..]) } 
+    if index < text.len() { (&text[..index], &text[index..]) }
     else { (text, "") }
 }
 
@@ -487,7 +488,7 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
             text = &text[1.min(text.len())..];
             continue;
         }
-        
+
         // try to parse an unordered list --------------------------------------
 
         let mut list_items: Vec<&str> = Vec::new();
@@ -498,7 +499,7 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
             text = rest;
         }
 
-        if list_items.len() > 0 { 
+        if list_items.len() > 0 {
             blocks.push( TextBlockPrecursor::UnorderedList {
                 items: list_items
                         .into_iter()
@@ -518,7 +519,7 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
             text = rest;
         }
 
-        if list_items.len() > 0 { 
+        if list_items.len() > 0 {
             blocks.push( TextBlockPrecursor::OrderedList {
                 items: list_items
                         .into_iter()
@@ -663,8 +664,34 @@ fn chunk_code(mut text: &str) -> Vec<TextChunk> {
 
     while let Some((before, code, after)) = split_code(text) {
         chunks.extend(chunk_style(before));
-        chunks.push(TextChunk::Code {
-            text: code.to_string(),
+        chunks.push(TextChunk::Code { text: code.to_string(), });
+        text = after;
+    }
+
+    chunks.extend(chunk_math(text));
+
+    chunks
+}
+
+// "foo $bar$ baz" -> ["foo ", "bar", " baz"]
+fn split_math(text: &str) -> Option<(&str, &str, &str)> {
+    let mut split = text.splitn(2, "$");
+    let before = split.next()?;
+    let mut split = split.next()?.splitn(2, "$");
+    let code = split.next()?;
+    let after = split.next()?;
+    Some((before, code, after))
+}
+
+fn chunk_math(mut text: &str) -> Vec<TextChunk> {
+    let mut chunks: Vec<TextChunk> = Vec::new();
+
+    let opts = katex::Opts::builder().output_type(katex::OutputType::Mathml).display_mode(true).build().unwrap();
+
+    while let Some((before, math, after)) = split_math(text) {
+        chunks.extend(chunk_style(before));
+        chunks.push(TextChunk::Math {
+            text: katex::render_with_opts(math, &opts).unwrap()
         });
         text = after;
     }
@@ -673,6 +700,12 @@ fn chunk_code(mut text: &str) -> Vec<TextChunk> {
 
     chunks
 }
+
+
+
+
+
+
 
 // last bunch of styles don't have a precedence ordering, so I'm ending the
 // chain in this single recursive function that'll parse all four of em.
