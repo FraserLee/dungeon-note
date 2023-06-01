@@ -9,17 +9,14 @@ import Html.Styled exposing (Html, div, span, p, text, h1, h2, h3, h4, h5, h6
                                  , b, i, u, s, a, img, code, li, ol, ul
                                  , blockquote, br, hr)
 
+import Html.Styled as Styled
 import Html.Styled.Events as Events
 import Html.Styled.Attributes as Attributes exposing (css)
 -- note to self: real css z-index should be data.zIndex + 10
 
 import Css
 
-import Html
 import Html.Attributes
-
-innerHtml : String -> Html.Html msg -- TODO: convert to styled primitives
-innerHtml content = Html.node "inner-html" [ Html.Attributes.attribute "content" content ] []
 
 ----------------------------------- constants ----------------------------------
 
@@ -165,7 +162,7 @@ mouseUp state = case state of
 
 
 mouseOffset : DragType -> MousePos -> AnchorPos -> Float -> Float -> Float -> Float -> MouseOffset
-mouseOffset dType mousePos anchorPos x y w h = 
+mouseOffset dType mousePos anchorPos x y w h =
     let l = dTypeLeftFree dType
         r = dTypeRightFree dType
         t = dTypeTopFree dType
@@ -333,7 +330,7 @@ viewTextChunk : TextChunk -> Html msg
 viewTextChunk chunk = case chunk of
     Link { title, url }      -> a [ Attributes.href url ] <| List.map viewTextChunk title
     Code { text }            -> code [] [ Html.Styled.text text ]
-    Math { text }            -> Html.Styled.fromUnstyled <| innerHtml text
+    Math { text }            -> innerHtml text
     Bold { chunks }          -> b [] <| List.map viewTextChunk chunks
     Italic { chunks }        -> i [] <| List.map viewTextChunk chunks
     Strikethrough { chunks } -> s [] <| List.map viewTextChunk chunks
@@ -341,3 +338,7 @@ viewTextChunk chunk = case chunk of
     Text(text)               -> span [] [ Html.Styled.text text ]
     NewLine                  -> br [] []
 
+
+-- render raw html from a string
+innerHtml : String -> Html.Styled.Html msg
+innerHtml content = Styled.node "inner-html" [ Attributes.attribute "content" content ] []

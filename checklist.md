@@ -110,8 +110,9 @@
 - [ ] Math (both asciimath and latex would be ideal)
     - generate html on the backend, don't have anything like MathJax
       running on the site
-    - [ ] Inline math as a TextChuck
+    - [x] Inline math as a TextChuck
     - [ ] Block mode math (TextBlock)
+    - [x] Good math styling
     - [ ] support `\def` between equations, other stateful things
     - [ ] default def linking
 
