@@ -23,6 +23,12 @@ use parser::{Document, DocumentUpdate, Element, TextBlock, TextChunk};
 
 lazy_static! {
     static ref DOC_PATH: String = std::env::args().nth(1).unwrap_or("".to_string());
+
+    // get the root path of the document, minus the file itself
+    static ref D1: Vec<u8> = DOC_PATH.bytes().rev().skip_while(|&b| b != b'/').collect::<Vec<u8>>();
+    static ref D2: Vec<u8> = D1.clone().into_iter().rev().collect::<Vec<u8>>();
+    static ref D3: String = std::str::from_utf8(&*D2).unwrap().to_string();
+
     static ref FRONT_PATH: String = std::env::args().nth(2).unwrap_or("".to_string());
     static ref DOCUMENT: Arc<Mutex<Document>> = Arc::new(Mutex::new(Document::new()));
 
@@ -146,8 +152,14 @@ async fn main() {
     let front = warp::path::end().and(warp::fs::file(FRONT_PATH.clone() + "/index.html"));
     // GET /fetch => send json encoded document
     let fetch = warp::path("fetch").map(|| warp::reply::json(&*DOCUMENT.lock().unwrap()));
-    // GET /<path> => front_path/<path>
-    let static_files = warp::fs::dir(FRONT_PATH.clone() + "/");
+
+    // // GET /<path> => front_path/<path>
+    // let static_files = warp::fs::dir(FRONT_PATH.clone() + "/");
+
+    // GET /<path> => if front_path/<path> exists, send it, otherwise
+    //                serve static file starting from the same root as DOC_PATH
+    let static_files = warp::fs::dir(FRONT_PATH.clone() + "/").or(warp::fs::dir(D3.clone()));
+
     // POST /update/<id> => update document with json encoded Text
     let update = warp::path!("update" / String).and(warp::body::json()).map(
         |key: String, update: DocumentUpdate| {
@@ -206,7 +218,7 @@ async fn main() {
         warp::sse::reply(warp::sse::keep_alive().stream(stream))
     });
 
-    let routes = front.or(fetch).or(static_files).or(update).or(file_change_sse);
+    let routes = front.or(fetch).or(update).or(file_change_sse).or(static_files);
 
 
 

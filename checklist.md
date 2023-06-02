@@ -133,7 +133,7 @@
 - [ ] Z-order on arbitrary elements with forwards / backwards buttons
 
 - [x] fix styling on links
-- [ ] Local File Images
+- [x] Local File Images
 - [ ] Tables in markdown
 - [ ] Swap last space for &nbsp; before each newline.
         - "p, h1, h2, h3, h4, h5, h6, li, dt, dd"
