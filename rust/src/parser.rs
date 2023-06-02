@@ -376,6 +376,14 @@ fn trim_start_no_newline(text: &str) -> &str {
     text.trim_start_matches(|c: char| c.is_whitespace() && c != '\n')
 }
 
+fn trim_one_newline(text: &str) -> &str {
+    if text.len() > 0 && text.starts_with('\n') {
+        &text[1..]
+    } else {
+        text
+    }
+}
+
 // Tabs counted as 4 spaces.
 fn count_indent(text: &str) -> usize {
     let mut count = 0;
@@ -476,13 +484,14 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
 
         // try to parse a code block -------------------------------------------
 
-        if text.starts_with("```") && let Some((code, rest)) = split(text[3..].trim_start(), "```") {
+        if text.starts_with("```") && let Some((code, rest)) = split(&text[3..], "```") {
 
-            blocks.push(TextBlockPrecursor::CodeBlock { text: code.trim() });
+            // remove everything before the first newline
+            blocks.push(TextBlockPrecursor::CodeBlock { text: trim_one_newline(code) });
 
             // skip forwards to the start of "code code code```[ \t]*\nHERE"
             text = trim_start_no_newline(rest);
-            text = &text[1.min(text.len())..];
+            text = trim_one_newline(text);
 
             continue;
         }
@@ -495,7 +504,7 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
 
            // skip forwards to the start of "math math math$$[ \t]*\nHERE"
             text = trim_start_no_newline(rest);
-            text = &text[1.min(text.len())..];
+            text = trim_one_newline(text);
 
             continue;
         }
