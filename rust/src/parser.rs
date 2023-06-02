@@ -683,7 +683,7 @@ fn chunk_code(mut text: &str) -> Vec<TextChunk> {
     let mut chunks: Vec<TextChunk> = Vec::new();
 
     while let Some((before, code, after)) = split_code(text) {
-        chunks.extend(chunk_style(before));
+        chunks.extend(chunk_math(before));
         chunks.push(TextChunk::Code { text: code.to_string(), });
         text = after;
     }
