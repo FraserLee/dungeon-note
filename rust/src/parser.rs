@@ -67,7 +67,8 @@ impl Element {
 pub enum TextBlock {
     Paragraph { chunks: Vec<TextChunk> },
     Header { level: u8, chunks: Vec<TextChunk> },
-    CodeBlock { code: String },
+    CodeBlock { text: String },
+    MathBlock { text: String },
     UnorderedList { items: Vec<TextBlock> },
     OrderedList { items: Vec<TextBlock> },
     BlockQuote { inner: Vec<TextBlock> },
@@ -123,7 +124,8 @@ enum TextBlockPrecursor<'a> {
 
     Header { level: u8, text: &'a str },
 
-    CodeBlock { code: &'a str },
+    CodeBlock { text: &'a str },
+    MathBlock { text: &'a str },
     UnorderedList { items: Vec<TextBlockPrecursor<'a>> },
     OrderedList { items: Vec<TextBlockPrecursor<'a>> },
 
@@ -424,7 +426,12 @@ fn parse_text_blocks(text: &str) -> Vec<TextBlock> {
         match x {
             TextBlockPrecursor::Paragraph { text } => Some(TextBlock::Paragraph { chunks: chunk_text(&text) }),
             TextBlockPrecursor::Header { level, text } => Some(TextBlock::Header { level, chunks: chunk_text(text) }),
-            TextBlockPrecursor::CodeBlock { code } => Some(TextBlock::CodeBlock { code: code.to_string() }),
+            TextBlockPrecursor::CodeBlock { text: code } => Some(TextBlock::CodeBlock { text: code.to_string() }),
+            TextBlockPrecursor::MathBlock { text: math } => {
+                let opts = katex::Opts::builder().output_type(katex::OutputType::HtmlAndMathml).display_mode(true).build().unwrap();
+                let math = katex::render_with_opts(&math, &opts).unwrap();
+                Some(TextBlock::MathBlock { text: math.to_string() })
+            },
             TextBlockPrecursor::UnorderedList { items } => Some(TextBlock::UnorderedList { items: items.into_iter().filter_map(|x| convert_precursor(x)).collect() }),
             TextBlockPrecursor::OrderedList { items } => Some(TextBlock::OrderedList { items: items.into_iter().filter_map(|x| convert_precursor(x)).collect() }),
             TextBlockPrecursor::BlockQuote { inner } => Some(TextBlock::BlockQuote { inner }),
@@ -471,9 +478,22 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
 
         if text.starts_with("```") && let Some((code, rest)) = split(text[3..].trim_start(), "```") {
 
-            blocks.push(TextBlockPrecursor::CodeBlock { code: code.trim() });
+            blocks.push(TextBlockPrecursor::CodeBlock { text: code.trim() });
 
             // skip forwards to the start of "code code code```[ \t]*\nHERE"
+            text = trim_start_no_newline(rest);
+            text = &text[1.min(text.len())..];
+
+            continue;
+        }
+
+        // try to parse a math block -------------------------------------------
+
+        if text.starts_with("$$") && let Some((math, rest)) = split(text[2..].trim_start(), "$$") {
+
+            blocks.push(TextBlockPrecursor::MathBlock { text: math.trim() });
+
+           // skip forwards to the start of "math math math$$[ \t]*\nHERE"
             text = trim_start_no_newline(rest);
             text = &text[1.min(text.len())..];
 
@@ -686,7 +706,7 @@ fn split_math(text: &str) -> Option<(&str, &str, &str)> {
 fn chunk_math(mut text: &str) -> Vec<TextChunk> {
     let mut chunks: Vec<TextChunk> = Vec::new();
 
-    let opts = katex::Opts::builder().output_type(katex::OutputType::HtmlAndMathml).display_mode(true).build().unwrap();
+    let opts = katex::Opts::builder().output_type(katex::OutputType::HtmlAndMathml).display_mode(false).build().unwrap();
 
     while let Some((before, math, after)) = split_math(text) {
         chunks.extend(chunk_style(before));

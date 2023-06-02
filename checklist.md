@@ -111,7 +111,7 @@
     - generate html on the backend, don't have anything like MathJax
       running on the site
     - [x] Inline math as a TextChuck
-    - [ ] Block mode math (TextBlock)
+    - [x] Block mode math (TextBlock)
     - [x] Good math styling
     - [ ] support `\def` between equations, other stateful things
     - [ ] default def linking

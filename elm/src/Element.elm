@@ -310,7 +310,9 @@ viewTextBlock block =
                 6 -> h6 []
                 _ -> p []
 
-        CodeBlock { code } -> Html.Styled.pre [] [ Html.Styled.code [] [ text code ] ]
+        CodeBlock { text } -> Styled.pre [] [ Styled.code [] [ Styled.text text ] ]
+
+        MathBlock { text } -> Styled.div [ css [ Tw.text_center ] ] [ innerHtml text ]
 
         UnorderedList { items } -> ul [] (List.map viewListItem items)
 
@@ -329,16 +331,16 @@ viewTextBlock block =
 viewTextChunk : TextChunk -> Html msg
 viewTextChunk chunk = case chunk of
     Link { title, url }      -> a [ Attributes.href url ] <| List.map viewTextChunk title
-    Code { text }            -> code [] [ Html.Styled.text text ]
+    Code { text }            -> code [] [ Styled.text text ]
     Math { text }            -> innerHtml text
     Bold { chunks }          -> b [] <| List.map viewTextChunk chunks
     Italic { chunks }        -> i [] <| List.map viewTextChunk chunks
     Strikethrough { chunks } -> s [] <| List.map viewTextChunk chunks
     Underline { chunks }     -> u [] <| List.map viewTextChunk chunks
-    Text(text)               -> span [] [ Html.Styled.text text ]
+    Text(text)               -> span [] [ Styled.text text ]
     NewLine                  -> br [] []
 
 
 -- render raw html from a string
-innerHtml : String -> Html.Styled.Html msg
+innerHtml : String -> Styled.Html msg
 innerHtml content = Styled.node "inner-html" [ Attributes.attribute "content" content ] []
