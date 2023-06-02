@@ -113,6 +113,7 @@
     - [x] Inline math as a TextChuck
     - [x] Block mode math (TextBlock)
     - [x] Good math styling
+        - [ ] `\big`, `\left`, etc should work
     - [ ] support `\def` between equations, other stateful things
     - [ ] default def linking
 

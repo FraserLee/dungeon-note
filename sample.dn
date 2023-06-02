@@ -93,6 +93,14 @@ let x = 1
 let y = 2
 ```
 
+$Math$ should work both $inline$ and standalone:
+
+$$\begin{aligned} 
+L^{-1}\left\{\frac{1}{(s+1/4)^2+15/16}\right\} 
+    &= e^{-t/4}L^{-1}\left\{\frac{1}{s^2+15/16}\right\} \\\\ 
+    &= \frac{4}{\sqrt{15}}e^{-t/4}L^{-1}\left\{\frac{ \sqrt{15/16} }{s^2+15/16}\right\} \\\\ 
+    &= \frac{4}{\sqrt{15}}e^{-t/4}\sin(\frac{\sqrt{15}}{4}t) \\\\ 
+\end{aligned}$$
 
 The following should be a list of items
 - indent level 0
