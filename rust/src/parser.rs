@@ -436,7 +436,11 @@ fn parse_text_blocks(text: &str) -> Vec<TextBlock> {
             TextBlockPrecursor::Header { level, text } => Some(TextBlock::Header { level, chunks: chunk_text(text) }),
             TextBlockPrecursor::CodeBlock { text: code } => Some(TextBlock::CodeBlock { text: code.to_string() }),
             TextBlockPrecursor::MathBlock { text: math } => {
-                let opts = katex::Opts::builder().output_type(katex::OutputType::HtmlAndMathml).display_mode(true).build().unwrap();
+                let opts = katex::Opts::builder()
+                            .output_type(katex::OutputType::HtmlAndMathml)
+                            .display_mode(true)
+                            .throw_on_error(false)
+                            .build().unwrap();
                 let math = katex::render_with_opts(&math, &opts).unwrap();
                 Some(TextBlock::MathBlock { text: math.to_string() })
             },
@@ -746,7 +750,11 @@ fn split_math(text: &str) -> Option<(&str, &str, &str)> {
 fn chunk_math(mut text: &str) -> Vec<TextChunk> {
     let mut chunks: Vec<TextChunk> = Vec::new();
 
-    let opts = katex::Opts::builder().output_type(katex::OutputType::HtmlAndMathml).display_mode(false).build().unwrap();
+    let opts = katex::Opts::builder()
+                .output_type(katex::OutputType::HtmlAndMathml)
+                .display_mode(false)
+                .throw_on_error(false)
+                .build().unwrap();
 
     while let Some((before, math, after)) = split_math(text) {
         chunks.extend(chunk_style(before));
