@@ -133,6 +133,12 @@
 
 - [ ] Z-order on arbitrary elements with forwards / backwards buttons
 
+- [ ] Checklists
+    - [ ] Parse
+    - [ ] Render
+    - [ ] Style
+    - [ ] Click to toggle
+
 - [x] fix styling on links
 - [x] Local File Images
 - [ ] Tables in markdown
