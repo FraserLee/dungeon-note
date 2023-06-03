@@ -117,6 +117,8 @@
     - [ ] support `\def` between equations, other stateful things
     - [ ] default def linking
 
+- [x] Don't write default textbox parameters
+
 - [ ] Rectangle Rotation
     - white single-pixel wheel around the point of the thing, mouseover
 

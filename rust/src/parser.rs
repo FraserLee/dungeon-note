@@ -42,6 +42,10 @@ pub enum Element {
     },
 }
 
+const DEFAULT_TEXTBOX_X : f64 = -350.;
+const DEFAULT_TEXTBOX_Y : f64 = 30.;
+const DEFAULT_TEXTBOX_WIDTH : f64 = 700.;
+
 impl Element {
     pub fn write_repr(&self) -> String {
 
@@ -56,8 +60,14 @@ impl Element {
                             x, y, width, height, z, color)
                     ),
 
-            Element::TextBox { x, y, width, data: _, raw_content } =>
-                format!("{:!<80}\n{}", format!("!!!!Text!x:{:.1}!y:{:.1}!width:{:.1}", x, y, width), raw_content),
+            Element::TextBox { x, y, width, data: _, raw_content } => {
+                // only write non-default values
+                let mut header = "!!!!Text!".to_string();
+                if *x != DEFAULT_TEXTBOX_X { header += &format!("x:{:.1}!", x); }
+                if *y != DEFAULT_TEXTBOX_Y { header += &format!("y:{:.1}!", y); }
+                if *width != DEFAULT_TEXTBOX_WIDTH { header += &format!("width:{:.1}!", width); }
+                format!("{:!<80}\n{}", header, raw_content)
+            },
 
         }
     }
@@ -323,9 +333,9 @@ pub fn parse(text: &str) -> Document {
         // depending on the type of element, we'll parse it differently
         let element = match precursor.type_.as_str() {
             "text" => Element::TextBox {
-                x: parse_float(precursor, "x", Some(-350.0)),
-                y: parse_float(precursor, "y", Some(30.0)),
-                width: parse_float(precursor, "width", Some(700.0)),
+                x: parse_float(precursor, "x", Some(DEFAULT_TEXTBOX_X)),
+                y: parse_float(precursor, "y", Some(DEFAULT_TEXTBOX_Y)),
+                width: parse_float(precursor, "width", Some(DEFAULT_TEXTBOX_WIDTH)),
                 data: parse_text_blocks(&text),
                 raw_content: text.clone(),
             },
