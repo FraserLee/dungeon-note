@@ -622,11 +622,11 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
 
 
 
-fn chunk_text(text: &str) -> Vec<TextChunk> { chunk_links(text) }
+fn chunk_text(text: &str) -> Vec<TextChunk> { chunk_links_1(text) }
 
 
 // "foo [bar](baz) quux" -> ["foo ", ("bar", "baz"), " quux"]
-fn split_link(text: &str) -> Option<(&str, (&str, &str), &str)> {
+fn split_link_1(text: &str) -> Option<(&str, (&str, &str), &str)> {
     let mut split = text.splitn(2, "[");
     let before = split.next()?;
     let mut split = split.next()?.splitn(2, "](");
@@ -637,14 +637,43 @@ fn split_link(text: &str) -> Option<(&str, (&str, &str), &str)> {
     Some((before, (link_text, link_url), after))
 }
 
+// a second style of link, where we just wrap square brackets around a url.
+// TODO: add regex to only link this if the inside is a valid url.
+// "foo [bar] baz" -> ["foo ", ("bar", "bar"), " baz"]
+fn split_link_2(text: &str) -> Option<(&str, (&str, &str), &str)> {
+    let mut split = text.splitn(2, "[");
+    let before = split.next()?;
+    let mut split = split.next()?.splitn(2, "]");
+    let link = split.next()?;
+    let after = split.next()?;
+    Some((before, (link, link), after))
+}
+
 // this calls the next function in the chain on all text it outputs, as do all
 // similar style ones. Might consider converting this to a HOF type thing
 // (or the defunctionalized equivalent if that's not possible in Rust).
 
-fn chunk_links(mut text: &str) -> Vec<TextChunk> {
+fn chunk_links_1(mut text: &str) -> Vec<TextChunk> {
     let mut chunks: Vec<TextChunk> = Vec::new();
 
-    while let Some((before, (link_text, link_url), after)) = split_link(text) {
+    while let Some((before, (link_text, link_url), after)) = split_link_1(text) {
+        chunks.extend(chunk_links_2(before));
+        chunks.push(TextChunk::Link {
+            title: chunk_links_2(link_text),
+            url: link_url.to_string(),
+        });
+        text = after;
+    }
+
+    chunks.extend(chunk_links_2(text));
+
+    chunks
+}
+
+fn chunk_links_2(mut text: &str) -> Vec<TextChunk> {
+    let mut chunks: Vec<TextChunk> = Vec::new();
+
+    while let Some((before, (link_text, link_url), after)) = split_link_2(text) {
         chunks.extend(chunk_breaks(before));
         chunks.push(TextChunk::Link {
             title: chunk_breaks(link_text),
@@ -657,6 +686,8 @@ fn chunk_links(mut text: &str) -> Vec<TextChunk> {
 
     chunks
 }
+
+
 
 // "foo<br>bar" -> ["foo", "bar"]
 fn split_break(text: &str) -> Option<(&str, &str)> {

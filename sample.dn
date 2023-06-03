@@ -142,7 +142,9 @@ The following should be a horizontal rule:
 as should this:
 --------------------------------------------------------------------------------
 
-Links should be [able to contain *inline* ~~styles~~ and `code`](http://example.com).
+Links should be [able to contain *inline* ~~styles~~ and `code`](https://example.com).
+
+Links can also work just by using square brackets around the URL: [https://example.com]
 
 The following should be an image
 ![image](https://github.com/FraserLee/dotfiles/blob/master/test.jpeg?raw=true)
