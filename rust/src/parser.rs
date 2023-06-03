@@ -193,18 +193,18 @@ lazy_static! {
 
     // a element header will look like this:
     // !!!!Text!x:370.0!y:150.0!width:300.0!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    static ref ELEMENT_HEADER_REGEX: Regex = Regex::new(r"(?i)^!!!+(text|line|rect)(?:!+\w+:[^!]+)*!!!+\s*$").unwrap();
+    static ref ELEMENT_HEADER_REGEX: Regex = Regex::new(r"(?i)^!!!+(text|line|rect)(?:!+\w+:[^!]+)*!!!+[ \t]*$").unwrap();
     static ref ELEMENT_PROPERTY_REGEX: Regex = Regex::new(r"!+(\w+):([^!]+)").unwrap();
 
     // matches numbers, but also some simple roman numerals. The choice of
     // which you use doesn't actually effect the output (yet, look into this)
-    static ref ORDERED_LIST_REGEX: Regex = Regex::new(r"^(?:\s*)((?:[ivx]+|\d+)\.\s+)").unwrap();
+    static ref ORDERED_LIST_REGEX: Regex = Regex::new(r"^(?:[ \t]*)((?:[ivx]+|\d+)\.[ \t]+)").unwrap();
 
-    static ref UNORDERED_LIST_REGEX: Regex = Regex::new(r"^(?:\s*)([*+-]\s+)").unwrap();
+    static ref UNORDERED_LIST_REGEX: Regex = Regex::new(r"^(?:[ \t]*)([*+-][ \t]+)").unwrap();
 
-    static ref BLOCKQUOTE_REGEX: Regex = Regex::new(r"^(?:\s*)>(.*)").unwrap();
+    static ref BLOCKQUOTE_REGEX: Regex = Regex::new(r"^(?:[ \t]*)>(.*)").unwrap();
 
-    static ref IMAGE_REGEX: Regex = Regex::new(r"^(?:\s*)!\[(.*)\]\((.*)\)").unwrap();
+    static ref IMAGE_REGEX: Regex = Regex::new(r"^(?:[ \t]*)!\[(.*)\]\((.*)\)").unwrap();
 
     // For italics, I have a regex that will match a single asterisk, only if
     // there's not a second asterisk right after it.
