@@ -780,6 +780,8 @@ fn chunk_math(mut text: &str) -> Vec<TextChunk> {
 
 fn chunk_style(text: &str) -> Vec<TextChunk> {
 
+    if text.is_empty() { return vec![]; }
+
     enum Style { Bold, Italic, Strike, Under }
 
     // you could definitely do this faster by traversing forwards once with a
@@ -822,7 +824,12 @@ fn chunk_style(text: &str) -> Vec<TextChunk> {
                 }..])
             );
         } else {
-            chunks.extend(chunk_style(&text[min_index..])); // .....**THIS (no closing tag)
+            chunks.extend(chunk_style( match min_style { // .....**THIS (no closing tag)
+                Style::Bold => &text[min_index + 2..],
+                Style::Italic => &text[min_index + 1..],
+                Style::Under => &text[min_index + 2..],
+                Style::Strike => &text[min_index + 2..],
+            }));
         }
 
         chunks
