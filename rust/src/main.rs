@@ -153,9 +153,6 @@ async fn main() {
     // GET /fetch => send json encoded document
     let fetch = warp::path("fetch").map(|| warp::reply::json(&*DOCUMENT.lock().unwrap()));
 
-    // // GET /<path> => front_path/<path>
-    // let static_files = warp::fs::dir(FRONT_PATH.clone() + "/");
-
     // GET /<path> => if front_path/<path> exists, send it, otherwise
     //                serve static file starting from the same root as DOC_PATH
     let static_files = warp::fs::dir(FRONT_PATH.clone() + "/").or(warp::fs::dir(D3.clone()));
