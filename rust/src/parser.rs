@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use regex::Regex;
 
+use prism_js::{init, highlight};
+
 // --------------------------- types shared with elm ---------------------------
 
 #[derive(Debug, Serialize, Deserialize, Elm, ElmEncode, ElmDecode)]
@@ -134,7 +136,7 @@ enum TextBlockPrecursor<'a> {
 
     Header { level: u8, text: &'a str },
 
-    CodeBlock { text: &'a str },
+    CodeBlock { lang: Option<&'a str>, text: &'a str },
     MathBlock { text: &'a str },
     UnorderedList { items: Vec<TextBlockPrecursor<'a>> },
     OrderedList { items: Vec<TextBlockPrecursor<'a>> },
@@ -438,13 +440,25 @@ fn split_scope<'a>(text: &'a str, indent: usize, test_first_line: bool) -> (&'a 
 
 
 fn parse_text_blocks(text: &str) -> Vec<TextBlock> {
+
+
+
     // convert the precursors into TextBlocks, parsing their contents from a
     // soup-like homogenate of characters into a deliciously chunkier form
     fn convert_precursor(x: TextBlockPrecursor) -> Option<TextBlock> {
         match x {
             TextBlockPrecursor::Paragraph { text } => Some(TextBlock::Paragraph { chunks: chunk_text(&text) }),
             TextBlockPrecursor::Header { level, text } => Some(TextBlock::Header { level, chunks: chunk_text(text) }),
-            TextBlockPrecursor::CodeBlock { text: code } => Some(TextBlock::CodeBlock { text: code.to_string() }),
+            TextBlockPrecursor::CodeBlock { lang, text: code } => {
+                let mut context = init(); // todo: don't init for every code block
+                lang.map(
+                    |lang|
+                        TextBlock::CodeBlock {
+                            text: highlight(&mut context, code, lang)
+                                    .unwrap_or("code block highlighting error".to_string())
+                        }
+                    ).or_else(|| Some(TextBlock::CodeBlock { text: code.to_string() }))
+            },
             TextBlockPrecursor::MathBlock { text: math } => {
                 let opts = katex::Opts::builder()
                             .output_type(katex::OutputType::HtmlAndMathml)
@@ -496,12 +510,28 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
             }
         }
 
-        // try to parse a code block -------------------------------------------
+        // try to parse a code block with a language ---------------------------
+
+        if text.starts_with("```") && let Some((lang, rest)) = split(&text[3..], "\n") {
+            if let Some((code, rest)) = split(rest, "```") {
+
+                // remove everything before the first newline
+                blocks.push(TextBlockPrecursor::CodeBlock { text: trim_one_newline(code), lang: Some(lang.trim()) });
+
+                // skip forwards to the start of "code code code```[ \t]*\nHERE"
+                text = trim_start_no_newline(rest);
+                text = trim_one_newline(text);
+
+                continue;
+            }
+        }
+
+        // try to parse a code block with no language --------------------------
 
         if text.starts_with("```") && let Some((code, rest)) = split(&text[3..], "```") {
 
             // remove everything before the first newline
-            blocks.push(TextBlockPrecursor::CodeBlock { text: trim_one_newline(code) });
+            blocks.push(TextBlockPrecursor::CodeBlock { text: trim_one_newline(code), lang: None });
 
             // skip forwards to the start of "code code code```[ \t]*\nHERE"
             text = trim_start_no_newline(rest);

@@ -310,7 +310,7 @@ viewTextBlock block =
                 6 -> h6 []
                 _ -> p []
 
-        CodeBlock { text } -> Styled.pre [] [ Styled.code [] [ Styled.text text ] ]
+        CodeBlock { text } -> Styled.pre [] [ Styled.code [] [ innerHtml text ] ]
 
         MathBlock { text } -> Styled.div [ css [ Tw.text_center ] ] [ innerHtml text ]
 
