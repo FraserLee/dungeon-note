@@ -664,7 +664,10 @@ fn parse_text_block_precursors(mut text: &str) -> Vec<TextBlockPrecursor> {
 
 
 
-
+// TODO: currently if something looks like a link inside of an inline codeblock
+// (or math), this will break. I could fix that by changing the order of things,
+// but then links with code or math in the title wouldn't work. The real fix is
+// to do parsing on ropes instead of strings.
 
 fn chunk_text(text: &str) -> Vec<TextChunk> { chunk_links_1(text) }
 
