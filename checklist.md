@@ -119,6 +119,16 @@
 
 - [x] Don't write default textbox parameters
 
+- [ ] Make page title into file name
+
+- [ ] Stabilize block order on write
+
+- [ ] Move code context to thread local storage
+
+- [ ] Figure out what's slowing it down in that one weird case
+
+- [ ] Add bool to preserve "color" "colour" split
+
 - [ ] Rectangle Rotation
     - white single-pixel wheel around the point of the thing, mouseover
 
